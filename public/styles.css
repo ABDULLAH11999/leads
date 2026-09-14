@@ -253,7 +253,7 @@ textarea:focus {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  min-width: 210px;
+  min-width: 180px;
 }
 
 .primary {
@@ -346,7 +346,7 @@ textarea:focus {
 
 table {
   width: 100%;
-  min-width: 1380px;
+  min-width: 1120px;
   border-collapse: collapse;
 }
 
@@ -367,7 +367,7 @@ th {
 }
 
 td {
-  max-width: 300px;
+  max-width: 240px;
   overflow-wrap: anywhere;
 }
 
@@ -538,12 +538,7 @@ tr:last-child td {
 }
 
 .modal-card pre {
-  overflow: auto;
-  border-radius: 8px;
-  background: #111827;
-  color: #f9fafb;
-  padding: 14px;
-  font-size: 0.82rem;
+  display: none;
 }
 
 .modal-close {
@@ -607,5 +602,94 @@ tr:last-child td {
   .status-strip,
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .table-wrap {
+    overflow: visible;
+    border: 0;
+  }
+
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  table {
+    border-collapse: separate;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  tr {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel-soft);
+    padding: 12px;
+  }
+
+  td {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 10px;
+    max-width: none;
+    border-bottom: 0;
+    padding: 7px 0;
+    font-size: 0.86rem;
+  }
+
+  td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  td[data-label="Business"] {
+    display: block;
+    padding-top: 0;
+  }
+
+  td[data-label="Business"]::before {
+    display: none;
+  }
+
+  td[data-label="Address"] {
+    max-height: 82px;
+    overflow: hidden;
+  }
+
+  .score {
+    width: 34px;
+    height: 34px;
+  }
+
+  .row-actions {
+    min-width: 0;
+  }
+
+  .link-stack {
+    gap: 5px;
+  }
+
+  .link-chip,
+  .mini-button,
+  .whatsapp-button {
+    min-height: 28px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
   }
 }

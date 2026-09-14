@@ -188,20 +188,20 @@ function renderLeads(leads = []) {
 
   rows.innerHTML = leads.map((lead) => `
     <tr>
-      <td>
+      <td data-label="Business">
         <button class="record-button" data-record='${escapeHtml(JSON.stringify(lead))}'>${escapeHtml(lead.store_name)}</button>
         ${lead.shortlisted ? '<span class="pill hot">Shortlisted</span>' : ''}
         ${qualityBadge(lead.lead_score)}
       </td>
-      <td>${escapeHtml(lead.category || '-')}</td>
-      <td><span class="score">${Number(lead.lead_score || 0)}</span></td>
-      <td>${lead.rating ? `${escapeHtml(lead.rating)} / 5` : 'OSM'}<br><span class="muted">${Number(lead.review_count || 0).toLocaleString()} reviews</span></td>
-      <td>${lead.phone && !String(lead.phone).startsWith('osm:') && !String(lead.phone).startsWith('place:') ? escapeHtml(lead.phone) : '<span class="muted">OSM phone only</span>'}</td>
-      <td>${whatsappMarkup(lead)}</td>
-      <td><div class="link-stack">${webMarkup(lead)}</div></td>
-      <td>${escapeHtml(lead.address || lead.area || '-')}<br><span class="muted">${lead.distance_km ? `${lead.distance_km}km away` : ''}</span></td>
-      <td><span class="pill ${lead.status === 'REJECTED' ? 'off' : ''}">${escapeHtml(lead.status)}</span></td>
-      <td>
+      <td data-label="Category">${escapeHtml(lead.category || '-')}</td>
+      <td data-label="Score"><span class="score">${Number(lead.lead_score || 0)}</span></td>
+      <td data-label="Reviews">${lead.rating ? `${escapeHtml(lead.rating)} / 5` : 'OSM'}<br><span class="muted">${Number(lead.review_count || 0).toLocaleString()} reviews</span></td>
+      <td data-label="Phone">${lead.phone && !String(lead.phone).startsWith('osm:') && !String(lead.phone).startsWith('place:') ? escapeHtml(lead.phone) : '<span class="muted">OSM phone only</span>'}</td>
+      <td data-label="WhatsApp">${whatsappMarkup(lead)}</td>
+      <td data-label="Links"><div class="link-stack">${webMarkup(lead)}</div></td>
+      <td data-label="Address">${escapeHtml(lead.address || lead.area || '-')}<br><span class="muted">${lead.distance_km ? `${lead.distance_km}km away` : ''}</span></td>
+      <td data-label="Status"><span class="pill ${lead.status === 'REJECTED' ? 'off' : ''}">${escapeHtml(lead.status)}</span></td>
+      <td data-label="Actions">
         <div class="row-actions">
           <button class="mini-button" data-shortlisted="true" data-lead-id="${lead.id}">Shortlist</button>
           <button class="mini-button" data-shortlisted="false" data-lead-id="${lead.id}">Remove</button>
@@ -252,7 +252,6 @@ function showRecord(lead) {
     <p><strong>Address:</strong> ${escapeHtml(lead.address || '-')}</p>
     <p><strong>Distance:</strong> ${lead.distance_km ? `${lead.distance_km}km` : '-'}</p>
     <div class="link-stack">${lead.whatsapp_url ? `<a class="button whatsapp-button" href="${escapeHtml(lead.whatsapp_url)}" target="_blank" rel="noreferrer">Message on WhatsApp</a>` : ''}${webMarkup(lead)}</div>
-    <pre>${escapeHtml(JSON.stringify(lead, null, 2))}</pre>
   `;
   modal.hidden = false;
 }
