@@ -10,6 +10,7 @@ const axios = require('axios');
 const NOMINATIM_URL = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org/search';
 
 const DEFAULT_OVERPASS_ENDPOINTS = [
+  'https://overpass.pmad.net/api/interpreter',
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
   'https://z.overpass-api.de/api/interpreter',
@@ -18,7 +19,7 @@ const DEFAULT_OVERPASS_ENDPOINTS = [
 
 function getOverpassEndpoints() {
   const configured = (process.env.OVERPASS_URL || '').trim();
-  if (configured) {
+  if (configured && !configured.includes('overpass-api.de')) {
     return [configured, ...DEFAULT_OVERPASS_ENDPOINTS.filter((u) => u !== configured)];
   }
   return DEFAULT_OVERPASS_ENDPOINTS;
@@ -330,7 +331,7 @@ async function discoverOsmBusinesses({
   for (const endpoint of endpoints) {
     try {
       response = await axios.post(endpoint, query, {
-        timeout: 20000,
+        timeout: 12000,
         headers: {
           'Content-Type': 'text/plain',
           'Accept': 'application/json',
