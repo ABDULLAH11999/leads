@@ -1,5 +1,10 @@
 require('dotenv').config();
 
+const dns = require('dns');
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const express = require('express');
 const path = require('path');
 const pino = require('pino');

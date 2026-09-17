@@ -1,9 +1,28 @@
 require('dotenv').config();
 
+const dns = require('dns');
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const axios = require('axios');
 
-const OVERPASS_URL = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
 const NOMINATIM_URL = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org/search';
+
+const DEFAULT_OVERPASS_ENDPOINTS = [
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://z.overpass-api.de/api/interpreter',
+  'https://overpass-api.de/api/interpreter'
+];
+
+function getOverpassEndpoints() {
+  const configured = (process.env.OVERPASS_URL || '').trim();
+  if (configured) {
+    return [configured, ...DEFAULT_OVERPASS_ENDPOINTS.filter((u) => u !== configured)];
+  }
+  return DEFAULT_OVERPASS_ENDPOINTS;
+}
 
 const BUSINESS_CATEGORY_FILTERS = {
   restaurant: { key: 'amenity', values: ['restaurant', 'fast_food', 'food_court'] },
@@ -53,41 +72,43 @@ function escapeOverpassRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function categoryRegex(categories) {
-  const values = [];
-
-  for (const category of categories) {
-    const filter = BUSINESS_CATEGORY_FILTERS[category];
-    if (filter) values.push(...filter.values);
-  }
-
-  return values.length ? values.map(escapeOverpassRegex).join('|') : '.+';
-}
-
 function buildOverpassQuery({ latitude, longitude, radiusKm, categories }) {
   const radiusMeters = Math.round(clampRadiusKm(radiusKm) * 1000);
   const normalized = normalizeCategories(categories);
-  const regex = categoryRegex(normalized);
-  const categoryClauses = Object.values(BUSINESS_CATEGORY_FILTERS)
-    .map((filter) => filter.key)
-    .filter((value, index, array) => array.indexOf(value) === index)
-    .map((key) => {
-      const tagRegex = key === 'amenity' || key === 'shop' || key === 'tourism' || key === 'leisure'
-        ? regex
-        : '.+';
-      return [
-        `nwr(around:${radiusMeters},${latitude},${longitude})["name"]["${key}"~"${tagRegex}"]["phone"];`,
-        `nwr(around:${radiusMeters},${latitude},${longitude})["name"]["${key}"~"${tagRegex}"]["contact:phone"];`,
-        `nwr(around:${radiusMeters},${latitude},${longitude})["name"]["${key}"~"${tagRegex}"]["mobile"];`,
-        `nwr(around:${radiusMeters},${latitude},${longitude})["name"]["${key}"~"${tagRegex}"]["contact:mobile"];`,
-        `nwr(around:${radiusMeters},${latitude},${longitude})["name"]["${key}"~"${tagRegex}"]["contact:whatsapp"];`
-      ].join('\n');
-    })
-    .join('\n');
 
-  return `[out:json][timeout:35];
+  const keyMap = new Map();
+  for (const category of normalized) {
+    const filter = BUSINESS_CATEGORY_FILTERS[category];
+    if (filter) {
+      if (!keyMap.has(filter.key)) keyMap.set(filter.key, new Set());
+      for (const val of filter.values) {
+        keyMap.get(filter.key).add(val);
+      }
+    }
+  }
+
+  if (keyMap.size === 0) {
+    for (const filter of Object.values(BUSINESS_CATEGORY_FILTERS)) {
+      if (!keyMap.has(filter.key)) keyMap.set(filter.key, new Set());
+      for (const val of filter.values) {
+        keyMap.get(filter.key).add(val);
+      }
+    }
+  }
+
+  const phoneFilter = `[~"^(phone|contact:phone|mobile|contact:mobile|contact:whatsapp)$"~".+"]`;
+
+  const clauses = [];
+  for (const [key, valuesSet] of keyMap.entries()) {
+    const valuesRegex = Array.from(valuesSet).map(escapeOverpassRegex).join('|');
+    clauses.push(
+      `  nw(around:${radiusMeters},${latitude},${longitude})["name"]["${key}"~"^(${valuesRegex})$"]${phoneFilter};`
+    );
+  }
+
+  return `[out:json][timeout:25];
 (
-${categoryClauses}
+${clauses.join('\n')}
 );
 out center tags;`;
 }
@@ -302,13 +323,33 @@ async function discoverOsmBusinesses({
     categories
   });
 
-  const response = await axios.post(OVERPASS_URL, query, {
-    timeout: 45000,
-    headers: {
-      'Content-Type': 'text/plain',
-      'User-Agent': appUserAgent()
+  const endpoints = getOverpassEndpoints();
+  let response = null;
+  let lastError = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      response = await axios.post(endpoint, query, {
+        timeout: 20000,
+        headers: {
+          'Content-Type': 'text/plain',
+          'Accept': 'application/json',
+          'User-Agent': appUserAgent()
+        }
+      });
+
+      if (response?.data && Array.isArray(response.data.elements)) {
+        break;
+      }
+    } catch (err) {
+      lastError = err;
     }
-  });
+  }
+
+  if (!response?.data || !Array.isArray(response.data.elements)) {
+    const detail = lastError?.response?.data?.message || lastError?.message || 'Connection refused or timed out';
+    throw new Error(`OpenStreetMap Overpass service unavailable (${detail}). Please try again shortly or configure a custom OVERPASS_URL.`);
+  }
 
   const leads = (response.data?.elements || [])
     .map((element) => osmElementToLead(element, center, defaultCountryCode))
