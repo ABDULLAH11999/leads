@@ -14,7 +14,9 @@ const videoEditorState = {
   platforms: [],
   results: [],
   platformFilter: '',
-  searchFilter: ''
+  searchFilter: '',
+  hasSearched: false,
+  loading: false
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -64,16 +66,16 @@ function platformIcon(platform) {
   const icons = {
     instagram: 'IG',
     facebook: 'f',
-    tiktok: 'TT'
+    tiktok: 'TK'
   };
   return icons[platform] || platform.slice(0, 2).toUpperCase();
 }
 
 function followerStatusText(status) {
-  if (status === 'verified') return '1-100K verified';
+  if (status === 'verified') return 'Verified range';
   if (status === 'below_range') return 'Below range';
   if (status === 'above_range') return 'Above range';
-  return 'Follower count hidden';
+  return 'Followers hidden';
 }
 
 function populateVideoEditorCities(countryCode) {
@@ -96,7 +98,7 @@ function renderVideoEditorPlatforms() {
     <label class="platform-toggle ${platform.id}">
       <input type="checkbox" name="platforms" value="${escapeHtml(platform.id)}" checked>
       <span class="social-icon ${escapeHtml(platform.id)}">${platformIcon(platform.id)}</span>
-      ${escapeHtml(platform.label)}
+      <span>${escapeHtml(platform.label)}</span>
     </label>
   `).join('');
 }
@@ -114,8 +116,23 @@ function renderVideoEditorResults() {
     return matchesPlatform && matchesSearch;
   });
 
+  if (videoEditorState.loading) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <strong>Searching profiles</strong>
+        <span>Checking public search results and visible follower metadata.</span>
+      </div>
+    `;
+    return;
+  }
+
   if (!results.length) {
-    container.innerHTML = '<div class="empty-state">No matching video editor accounts found.</div>';
+    container.innerHTML = `
+      <div class="empty-state">
+        <strong>${videoEditorState.hasSearched ? 'No profiles matched' : 'Ready to search'}</strong>
+        <span>${videoEditorState.hasSearched ? 'Try another city, platform, or keyword.' : 'Choose a city and platform, then run the search.'}</span>
+      </div>
+    `;
     return;
   }
 
@@ -131,12 +148,12 @@ function renderVideoEditorResults() {
           <a class="social-icon ${escapeHtml(account.platform)}" href="${escapeHtml(account.profile_url)}" target="_blank" rel="noreferrer" title="Open ${escapeHtml(account.platform_label)} profile">${platformIcon(account.platform)}</a>
           <div>
             <h3>${escapeHtml(account.display_name || account.handle)}</h3>
-            <p>@${escapeHtml(account.handle)}</p>
+            <p>@${escapeHtml(account.handle)} · ${escapeHtml(account.platform_label)}</p>
           </div>
         </div>
         <div class="account-facts">
-          <span><strong>${formatFollowers(account.followers)}</strong><small>Followers</small></span>
-          <span><strong>${Number(account.score || 0)}</strong><small>Match</small></span>
+          <span><small>Followers</small><strong>${formatFollowers(account.followers)}</strong></span>
+          <span><small>Match</small><strong>${Number(account.score || 0)}</strong></span>
         </div>
         <p class="account-bio">${escapeHtml(account.bio || account.snippet || 'Public profile candidate')}</p>
         <div class="keyword-row">${keywords}</div>
@@ -196,12 +213,16 @@ async function initVideoEditorPage() {
     payload.include_unverified = form.elements.include_unverified.checked;
 
     try {
+      videoEditorState.loading = true;
+      videoEditorState.hasSearched = true;
+      renderVideoEditorResults();
       showNotice('#videoEditorNotice', 'Searching public social profiles and checking visible follower counts.');
       const result = await api('/api/video-editors/search', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
 
+      videoEditorState.loading = false;
       videoEditorState.results = result.accounts || [];
       $('#veReturnedCount').textContent = Number(result.returned_count || 0).toLocaleString();
       $('#veVerifiedCount').textContent = Number(result.verified_count || 0).toLocaleString();
@@ -212,6 +233,8 @@ async function initVideoEditorPage() {
       );
       renderVideoEditorResults();
     } catch (error) {
+      videoEditorState.loading = false;
+      renderVideoEditorResults();
       showNotice('#videoEditorNotice', error.message, true);
     }
   });

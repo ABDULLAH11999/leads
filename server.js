@@ -409,10 +409,10 @@ app.get('/video-editors', (req, res) => {
   </header>
 
   <main class="layout video-editor-page" id="videoEditorPage">
-    <section class="panel video-hero">
+    <section class="video-summary">
       <div>
-        <p class="eyebrow">Public Profile Discovery</p>
-        <h2>Find video editing accounts by country, city, platform, and follower range.</h2>
+        <p class="eyebrow">Social Discovery</p>
+        <h2>Video editing profiles</h2>
       </div>
       <div class="video-metrics" aria-live="polite">
         <div class="metric">
@@ -435,7 +435,7 @@ app.get('/video-editors', (req, res) => {
         <div class="section-heading">
           <div>
             <p class="eyebrow">Filters</p>
-            <h2>Search Accounts</h2>
+            <h2>Search</h2>
           </div>
         </div>
         <form id="videoEditorForm" class="form-stack">
@@ -446,10 +446,10 @@ app.get('/video-editors', (req, res) => {
             <label>Min Followers<input name="min_followers" type="number" min="1" max="100000" value="1"></label>
             <label>Max Followers<input name="max_followers" type="number" min="1" max="100000" value="100000"></label>
           </div>
-          <label>Accounts<input name="limit" type="number" min="1" max="50" value="50"></label>
+          <label>Result Limit<input name="limit" type="number" min="1" max="50" value="50"></label>
           <div class="platform-toggles" id="vePlatforms" aria-label="Platforms"></div>
           <label>Keywords<textarea name="keywords" rows="5" placeholder="video editor, reels editor, tiktok video editor"></textarea></label>
-          <label class="checkline"><input name="include_unverified" type="checkbox" checked> Include candidates when follower count is hidden</label>
+          <label class="checkline"><input name="include_unverified" type="checkbox" checked> Include hidden follower counts</label>
           <button class="button primary" type="submit">Find Accounts</button>
         </form>
         <div id="videoEditorNotice" class="notice" hidden></div>
@@ -459,7 +459,7 @@ app.get('/video-editors', (req, res) => {
         <div class="section-heading table-heading">
           <div>
             <p class="eyebrow">Results</p>
-            <h2>Video Editing Profiles</h2>
+            <h2>Profiles</h2>
           </div>
           <div class="filters">
             <select id="vePlatformFilter" aria-label="Platform filter">
