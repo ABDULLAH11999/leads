@@ -30,12 +30,27 @@ No Google Maps API key is required for the OSM/Overpass workflow.
 - `GET /api/status` - app status and stats
 - `GET /api/osm/geocode?q=Gulberg Lahore` - user-triggered OSM search
 - `POST /api/discovery/osm` - free Overpass radius discovery
+- `GET /video-editors` - video editor social profile finder
+- `GET /api/video-editors/locations` - supported countries, cities, platforms, and default keywords
+- `POST /api/video-editors/search` - protected Instagram/Facebook/TikTok public profile discovery
 - `GET /api/leads` - filtered saved leads
 - `GET /api/leads/shortlisted` - top shortlisted records
 - `PATCH /api/leads/:id` - protected lead updates
 - `POST /api/campaign/trigger` - disabled by design
 
 Protected routes accept `secret`, `x-admin-secret`, or `secret` in the JSON body.
+
+## Video Editor Social Finder
+
+Open `http://localhost:3000/video-editors`, choose a country and city, then search up to 50 public Instagram/Facebook/TikTok profiles. The backend uses multiple video-editing keywords and public search results, then tries to read visible follower counts from public profile metadata.
+
+```bash
+curl -X POST http://localhost:3000/api/video-editors/search \
+  -H "Content-Type: application/json" \
+  -d "{\"secret\":\"your_secret\",\"country\":\"PK\",\"city\":\"Lahore\",\"platforms\":[\"instagram\",\"facebook\",\"tiktok\"],\"min_followers\":1,\"max_followers\":100000,\"limit\":50,\"include_unverified\":true}"
+```
+
+Follower counts are marked as `verified` when they are visible publicly and inside the requested range. Some platforms hide follower counts from non-logged-in requests, so those profiles are returned as `not_public` candidates when `include_unverified` is enabled.
 
 ## OSM Discovery Example
 

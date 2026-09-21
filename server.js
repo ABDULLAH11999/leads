@@ -13,6 +13,12 @@ const { isDatabaseConfigured, query } = require('./db');
 const { checkWhatsAppNumber, getQRCode, isBotConnected, startBot } = require('./bot');
 const { normalizePhone } = require('./scraper');
 const { DEFAULT_OSM_CATEGORIES, discoverOsmBusinesses, geocodeOsm } = require('./osmDiscovery');
+const {
+  VIDEO_EDITOR_KEYWORDS,
+  VIDEO_EDITOR_LOCATIONS,
+  VIDEO_EDITOR_PLATFORMS,
+  discoverVideoEditorAccounts
+} = require('./videoEditorDiscovery');
 
 const app = express();
 const logger = pino({
@@ -242,6 +248,7 @@ app.get('/', (req, res) => {
       <h1>Business Lead Research</h1>
     </div>
     <div class="topbar-actions">
+      <a class="button ghost" href="/video-editors">Video Editors</a>
       <a class="button ghost" href="/qr">QR</a>
       <a class="button ghost" href="/health">Health</a>
     </div>
@@ -384,6 +391,93 @@ app.get('/', (req, res) => {
   }));
 });
 
+app.get('/video-editors', (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.end(htmlPage({
+    title: 'Video Editor Social Finder - Lead Engine',
+    bodyClass: 'app-shell video-editor-shell',
+    body: `
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Lead Engine</p>
+      <h1>Video Editor Social Finder</h1>
+    </div>
+    <div class="topbar-actions">
+      <a class="button ghost" href="/">Console</a>
+      <a class="button ghost" href="/health">Health</a>
+    </div>
+  </header>
+
+  <main class="layout video-editor-page" id="videoEditorPage">
+    <section class="panel video-hero">
+      <div>
+        <p class="eyebrow">Public Profile Discovery</p>
+        <h2>Find video editing accounts by country, city, platform, and follower range.</h2>
+      </div>
+      <div class="video-metrics" aria-live="polite">
+        <div class="metric">
+          <small>Returned</small>
+          <strong id="veReturnedCount">0</strong>
+        </div>
+        <div class="metric">
+          <small>Verified Range</small>
+          <strong id="veVerifiedCount">0</strong>
+        </div>
+        <div class="metric">
+          <small>Profiles Found</small>
+          <strong id="veDiscoveredCount">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="video-workspace">
+      <article class="panel video-filter-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Filters</p>
+            <h2>Search Accounts</h2>
+          </div>
+        </div>
+        <form id="videoEditorForm" class="form-stack">
+          <label>Admin Secret<input name="secret" type="password" required placeholder="ADMIN_SECRET"></label>
+          <label>Country<select name="country" id="veCountry" required></select></label>
+          <label>City<select name="city" id="veCity" required></select></label>
+          <div class="range-row">
+            <label>Min Followers<input name="min_followers" type="number" min="1" max="100000" value="1"></label>
+            <label>Max Followers<input name="max_followers" type="number" min="1" max="100000" value="100000"></label>
+          </div>
+          <label>Accounts<input name="limit" type="number" min="1" max="50" value="50"></label>
+          <div class="platform-toggles" id="vePlatforms" aria-label="Platforms"></div>
+          <label>Keywords<textarea name="keywords" rows="5" placeholder="video editor, reels editor, tiktok video editor"></textarea></label>
+          <label class="checkline"><input name="include_unverified" type="checkbox" checked> Include candidates when follower count is hidden</label>
+          <button class="button primary" type="submit">Find Accounts</button>
+        </form>
+        <div id="videoEditorNotice" class="notice" hidden></div>
+      </article>
+
+      <section class="panel video-results-panel">
+        <div class="section-heading table-heading">
+          <div>
+            <p class="eyebrow">Results</p>
+            <h2>Video Editing Profiles</h2>
+          </div>
+          <div class="filters">
+            <select id="vePlatformFilter" aria-label="Platform filter">
+              <option value="">All platforms</option>
+              <option value="instagram">Instagram</option>
+              <option value="facebook">Facebook</option>
+              <option value="tiktok">TikTok</option>
+            </select>
+            <input id="veResultFilter" placeholder="Search profile, handle, keyword">
+          </div>
+        </div>
+        <div class="video-result-grid" id="videoEditorResults"></div>
+      </section>
+    </section>
+  </main>`
+  }));
+});
+
 app.get('/qr', (req, res) => {
   const qr = getQRCode();
 
@@ -418,6 +512,9 @@ app.get('/health', (req, res) => {
       status: 'GET /api/status',
       osmGeocode: 'GET /api/osm/geocode?q=Gulberg Lahore',
       osmDiscover: 'POST /api/discovery/osm',
+      videoEditorPage: 'GET /video-editors',
+      videoEditorLocations: 'GET /api/video-editors/locations',
+      videoEditorSearch: 'POST /api/video-editors/search',
       leads: 'GET /api/leads',
       ingestLeads: 'POST /api/leads/batch',
       updateLead: 'PATCH /api/leads/:id',
@@ -444,6 +541,38 @@ app.get('/api/status', async (req, res) => {
   } catch (error) {
     logger.error({ error: error.message }, '[API] Status query failed.');
     res.status(500).json({ error: 'Failed to fetch status.' });
+  }
+});
+
+app.get('/api/video-editors/locations', (req, res) => {
+  res.json({
+    countries: VIDEO_EDITOR_LOCATIONS,
+    platforms: Object.entries(VIDEO_EDITOR_PLATFORMS).map(([id, config]) => ({
+      id,
+      label: config.label
+    })),
+    default_keywords: VIDEO_EDITOR_KEYWORDS
+  });
+});
+
+app.post('/api/video-editors/search', requireAdminSecret, async (req, res) => {
+  try {
+    const result = await discoverVideoEditorAccounts({
+      country: req.body?.country,
+      city: req.body?.city,
+      platforms: req.body?.platforms,
+      keywords: req.body?.keywords,
+      limit: req.body?.limit,
+      min_followers: req.body?.min_followers,
+      max_followers: req.body?.max_followers,
+      include_unverified: req.body?.include_unverified,
+      max_queries: req.body?.max_queries
+    });
+
+    return res.json(result);
+  } catch (error) {
+    logger.error({ error: error.message }, '[API] Video editor discovery failed.');
+    return res.status(500).json({ error: error.message || 'Video editor discovery failed.' });
   }
 });
 

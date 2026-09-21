@@ -9,6 +9,14 @@ const state = {
   circle: null
 };
 
+const videoEditorState = {
+  locations: [],
+  platforms: [],
+  results: [],
+  platformFilter: '',
+  searchFilter: ''
+};
+
 const $ = (selector) => document.querySelector(selector);
 
 function escapeHtml(value) {
@@ -42,6 +50,171 @@ function showNotice(id, message, isError = false) {
   element.hidden = false;
   element.classList.toggle('error', isError);
   element.textContent = message;
+}
+
+function formatFollowers(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 'Hidden';
+  if (number >= 1000000) return `${(number / 1000000).toFixed(number >= 10000000 ? 0 : 1)}M`;
+  if (number >= 1000) return `${(number / 1000).toFixed(number >= 10000 ? 0 : 1)}K`;
+  return number.toLocaleString();
+}
+
+function platformIcon(platform) {
+  const icons = {
+    instagram: 'IG',
+    facebook: 'f',
+    tiktok: 'TT'
+  };
+  return icons[platform] || platform.slice(0, 2).toUpperCase();
+}
+
+function followerStatusText(status) {
+  if (status === 'verified') return '1-100K verified';
+  if (status === 'below_range') return 'Below range';
+  if (status === 'above_range') return 'Above range';
+  return 'Follower count hidden';
+}
+
+function populateVideoEditorCities(countryCode) {
+  const citySelect = $('#veCity');
+  if (!citySelect) return;
+
+  const selectedCountry = videoEditorState.locations.find((country) => country.code === countryCode)
+    || videoEditorState.locations[0];
+
+  citySelect.innerHTML = (selectedCountry?.cities || []).map((city) => {
+    return `<option value="${escapeHtml(city)}">${escapeHtml(city)}</option>`;
+  }).join('');
+}
+
+function renderVideoEditorPlatforms() {
+  const container = $('#vePlatforms');
+  if (!container) return;
+
+  container.innerHTML = videoEditorState.platforms.map((platform) => `
+    <label class="platform-toggle ${platform.id}">
+      <input type="checkbox" name="platforms" value="${escapeHtml(platform.id)}" checked>
+      <span class="social-icon ${escapeHtml(platform.id)}">${platformIcon(platform.id)}</span>
+      ${escapeHtml(platform.label)}
+    </label>
+  `).join('');
+}
+
+function renderVideoEditorResults() {
+  const container = $('#videoEditorResults');
+  if (!container) return;
+
+  const search = videoEditorState.searchFilter.trim().toLowerCase();
+  const platform = videoEditorState.platformFilter;
+  const results = videoEditorState.results.filter((account) => {
+    const matchesPlatform = !platform || account.platform === platform;
+    const haystack = `${account.display_name} ${account.handle} ${account.snippet || ''} ${(account.matched_keywords || []).join(' ')}`.toLowerCase();
+    const matchesSearch = !search || haystack.includes(search);
+    return matchesPlatform && matchesSearch;
+  });
+
+  if (!results.length) {
+    container.innerHTML = '<div class="empty-state">No matching video editor accounts found.</div>';
+    return;
+  }
+
+  container.innerHTML = results.map((account) => {
+    const statusClass = account.follower_status === 'verified' ? 'hot' : 'off';
+    const keywords = (account.matched_keywords || []).slice(0, 3).map((keyword) => {
+      return `<span class="keyword-chip">${escapeHtml(keyword)}</span>`;
+    }).join('');
+
+    return `
+      <article class="video-account-card">
+        <div class="account-card-top">
+          <a class="social-icon ${escapeHtml(account.platform)}" href="${escapeHtml(account.profile_url)}" target="_blank" rel="noreferrer" title="Open ${escapeHtml(account.platform_label)} profile">${platformIcon(account.platform)}</a>
+          <div>
+            <h3>${escapeHtml(account.display_name || account.handle)}</h3>
+            <p>@${escapeHtml(account.handle)}</p>
+          </div>
+        </div>
+        <div class="account-facts">
+          <span><strong>${formatFollowers(account.followers)}</strong><small>Followers</small></span>
+          <span><strong>${Number(account.score || 0)}</strong><small>Match</small></span>
+        </div>
+        <p class="account-bio">${escapeHtml(account.bio || account.snippet || 'Public profile candidate')}</p>
+        <div class="keyword-row">${keywords}</div>
+        <div class="account-actions">
+          <span class="pill ${statusClass}">${followerStatusText(account.follower_status)}</span>
+          <a class="button social-open ${escapeHtml(account.platform)}" href="${escapeHtml(account.profile_url)}" target="_blank" rel="noreferrer">
+            <span class="social-icon ${escapeHtml(account.platform)}">${platformIcon(account.platform)}</span>
+            Open
+          </a>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+async function initVideoEditorPage() {
+  const config = await api('/api/video-editors/locations');
+  videoEditorState.locations = config.countries || [];
+  videoEditorState.platforms = config.platforms || [];
+
+  const countrySelect = $('#veCountry');
+  if (countrySelect) {
+    countrySelect.innerHTML = videoEditorState.locations.map((country) => {
+      return `<option value="${escapeHtml(country.code)}">${escapeHtml(country.name)}</option>`;
+    }).join('');
+    populateVideoEditorCities(countrySelect.value);
+  }
+
+  const keywordsInput = $('#videoEditorForm textarea[name="keywords"]');
+  if (keywordsInput && config.default_keywords?.length) {
+    keywordsInput.value = config.default_keywords.slice(0, 10).join(', ');
+  }
+
+  renderVideoEditorPlatforms();
+  renderVideoEditorResults();
+
+  countrySelect?.addEventListener('change', (event) => {
+    populateVideoEditorCities(event.currentTarget.value);
+  });
+
+  $('#vePlatformFilter')?.addEventListener('change', (event) => {
+    videoEditorState.platformFilter = event.currentTarget.value;
+    renderVideoEditorResults();
+  });
+
+  $('#veResultFilter')?.addEventListener('input', (event) => {
+    videoEditorState.searchFilter = event.currentTarget.value;
+    renderVideoEditorResults();
+  });
+
+  $('#videoEditorForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+    payload.platforms = formData.getAll('platforms');
+    payload.include_unverified = form.elements.include_unverified.checked;
+
+    try {
+      showNotice('#videoEditorNotice', 'Searching public social profiles and checking visible follower counts.');
+      const result = await api('/api/video-editors/search', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      videoEditorState.results = result.accounts || [];
+      $('#veReturnedCount').textContent = Number(result.returned_count || 0).toLocaleString();
+      $('#veVerifiedCount').textContent = Number(result.verified_count || 0).toLocaleString();
+      $('#veDiscoveredCount').textContent = Number(result.discovered_count || 0).toLocaleString();
+      showNotice(
+        '#videoEditorNotice',
+        `Listed ${result.returned_count || 0} accounts from ${result.discovered_count || 0} public profiles. ${result.verified_count || 0} have visible followers inside the selected range.`
+      );
+      renderVideoEditorResults();
+    } catch (error) {
+      showNotice('#videoEditorNotice', error.message, true);
+    }
+  });
 }
 
 function updateMapSelection(lat, lon, zoom = 14) {
@@ -386,6 +559,13 @@ function bindForms() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  if ($('#videoEditorPage')) {
+    initVideoEditorPage().catch((error) => {
+      showNotice('#videoEditorNotice', error.message, true);
+    });
+    return;
+  }
+
   if (!$('#statsGrid')) return;
 
   initMap();

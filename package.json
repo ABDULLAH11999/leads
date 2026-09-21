@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "scrape": "node scraper.js",
-    "check": "node --check server.js && node --check bot.js && node --check ai.js && node --check db.js && node --check scraper.js && node --check discovery.js && node --check osmDiscovery.js"
+    "check": "node --check server.js && node --check bot.js && node --check ai.js && node --check db.js && node --check scraper.js && node --check discovery.js && node --check osmDiscovery.js && node --check videoEditorDiscovery.js"
   },
   "keywords": [
     "whatsapp",
