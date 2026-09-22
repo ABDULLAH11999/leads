@@ -1,6 +1,6 @@
 /**
- * CYBER AUDIO ENGINE - Web Audio API Synthesizer
- * Zero external audio dependencies - 100% native procedural sound generation.
+ * CYBER AUDIO ENGINE - Authentic Bank ATM & POS Synthesizer
+ * Zero external audio dependencies - 100% native Web Audio API dual-tone generation.
  */
 class CyberAudioEngine {
   constructor() {
@@ -32,94 +32,114 @@ class CyberAudioEngine {
     return this.muted;
   }
 
-  // Keypad click: ATM / DTMF cyber tone
+  // Authentic Bank ATM / POS Dual-Tone Beep ("bep bep")
   playKeypad(digit) {
     this.initContext();
     if (!this.isReady()) return;
 
     try {
       const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-
-      const freqMap = {
-        '1': 697, '2': 770, '3': 852,
-        '4': 697, '5': 770, '6': 852,
-        '7': 941, '8': 941, '9': 1209,
-        '0': 1336, 'clear': 440, 'enter': 1477
+      // Standard ISO Bank ATM DTMF dual frequencies
+      const dtmfMap = {
+        '1': [697, 1209],
+        '2': [697, 1336],
+        '3': [697, 1477],
+        '4': [770, 1209],
+        '5': [770, 1336],
+        '6': [770, 1477],
+        '7': [852, 1209],
+        '8': [852, 1336],
+        '9': [852, 1477],
+        '0': [941, 1336],
+        'clear': [480, 620],
+        'enter': [1336, 1633]
       };
 
-      const baseFreq = freqMap[digit] || 880;
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(baseFreq, now);
-      osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.4, now + 0.04);
+      const freqs = dtmfMap[digit] || [852, 1336];
 
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      freqs.forEach((freq) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
 
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
 
-      osc.start(now);
-      osc.stop(now + 0.08);
+        // Authentic ATM crisp 55ms click-beep envelope
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.12, now + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.06);
+      });
     } catch (_) {}
   }
 
-  // Access Granted: Ascending 3-chord cyber fanfare
+  // Access Granted: Bank ATM Approved 3-tone chime (ding-ding-da!)
   playAccessGranted() {
     this.initContext();
     if (!this.isReady()) return;
 
     try {
       const now = this.ctx.currentTime;
-      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      const notes = [
+        { f: 880, t: 0, d: 0.12 },
+        { f: 1175, t: 0.08, d: 0.14 },
+        { f: 1760, t: 0.18, d: 0.35 }
+      ];
 
-      notes.forEach((freq, idx) => {
+      notes.forEach(({ f, t, d }) => {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
 
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, now + t);
 
-        gain.gain.setValueAtTime(0, now + idx * 0.08);
-        gain.gain.linearRampToValueAtTime(0.15, now + idx * 0.08 + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.28);
+        gain.gain.setValueAtTime(0, now + t);
+        gain.gain.linearRampToValueAtTime(0.18, now + t + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + t + d);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
-        osc.start(now + idx * 0.08);
-        osc.stop(now + idx * 0.08 + 0.3);
+        osc.start(now + t);
+        osc.stop(now + t + d + 0.02);
       });
     } catch (_) {}
   }
 
-  // Access Denied: Low glitch buzz & alarm
+  // Access Denied: ATM PIN Error Double Buzz (bip-bip)
   playAccessDenied() {
     this.initContext();
     if (!this.isReady()) return;
 
     try {
       const now = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
+      [0, 0.11].forEach((t) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
 
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(160, now);
-      osc.frequency.linearRampToValueAtTime(90, now + 0.22);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now + t);
+        osc.frequency.linearRampToValueAtTime(130, now + t + 0.08);
 
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        gain.gain.setValueAtTime(0, now + t);
+        gain.gain.linearRampToValueAtTime(0.16, now + t + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.085);
 
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
 
-      osc.start(now);
-      osc.stop(now + 0.26);
+        osc.start(now + t);
+        osc.stop(now + t + 0.09);
+      });
     } catch (_) {}
   }
 
-  // Tab Switch: Sci-fi interface frequency slide
+  // Tab Switch: Soft electronic POS switch beep
   playTabSwitch() {
     this.initContext();
     if (!this.isReady()) return;
@@ -130,17 +150,18 @@ class CyberAudioEngine {
       const gain = this.ctx.createGain();
 
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+      osc.frequency.setValueAtTime(950, now);
+      osc.frequency.exponentialRampToValueAtTime(1400, now + 0.04);
 
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.08, now + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.1);
+      osc.stop(now + 0.05);
     } catch (_) {}
   }
 
@@ -151,33 +172,31 @@ class CyberAudioEngine {
 
     try {
       const now = this.ctx.currentTime;
-      // Sub sweep
+      // Sub pulse
       const osc1 = this.ctx.createOscillator();
       const gain1 = this.ctx.createGain();
       osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(180, now);
-      osc1.frequency.exponentialRampToValueAtTime(60, now + 0.35);
-      gain1.gain.setValueAtTime(0.18, now);
-      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-
+      osc1.frequency.setValueAtTime(240, now);
+      osc1.frequency.exponentialRampToValueAtTime(80, now + 0.22);
+      gain1.gain.setValueAtTime(0.15, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
       osc1.connect(gain1);
       gain1.connect(this.ctx.destination);
       osc1.start(now);
-      osc1.stop(now + 0.36);
+      osc1.stop(now + 0.23);
 
-      // Radar ping high
+      // Radar chirp
       const osc2 = this.ctx.createOscillator();
       const gain2 = this.ctx.createGain();
       osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(1760, now);
-      osc2.frequency.exponentialRampToValueAtTime(1400, now + 0.25);
-      gain2.gain.setValueAtTime(0.1, now);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-
+      osc2.frequency.setValueAtTime(1800, now);
+      osc2.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+      gain2.gain.setValueAtTime(0.09, now);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
       osc2.connect(gain2);
       gain2.connect(this.ctx.destination);
       osc2.start(now);
-      osc2.stop(now + 0.26);
+      osc2.stop(now + 0.16);
     } catch (_) {}
   }
 
@@ -1404,6 +1423,15 @@ document.addEventListener('DOMContentLoaded', () => {
   bindLeadsControls();
   initVideoEditorControls();
   initBioFetchControls();
+
+  // Initialize audio context on first user interaction
+  const unlockAudio = () => {
+    audio.initContext();
+    window.removeEventListener('pointerdown', unlockAudio);
+    window.removeEventListener('keydown', unlockAudio);
+  };
+  window.addEventListener('pointerdown', unlockAudio, { once: true });
+  window.addEventListener('keydown', unlockAudio, { once: true });
 
   if (state.authToken) {
     refreshDashboard().catch(() => {});
