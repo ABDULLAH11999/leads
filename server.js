@@ -102,15 +102,27 @@ function htmlPage({ title, initialTab = 'leads' }) {
         <p class="pin-hint">ENTER 4-DIGIT SECURITY PIN TO UNLOCK CONSOLE</p>
       </div>
 
-      <div class="pin-display">
+      <!-- Desktop 4-Box Inputs (Better Width) -->
+      <div class="desktop-pin-wrapper" id="desktopPinWrapper">
+        <div class="desktop-pin-inputs" id="desktopPinInputs">
+          <input type="password" maxlength="1" class="pin-box" id="pinBox1" data-index="0" autofocus inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="*">
+          <input type="password" maxlength="1" class="pin-box" id="pinBox2" data-index="1" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="*">
+          <input type="password" maxlength="1" class="pin-box" id="pinBox3" data-index="2" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="*">
+          <input type="password" maxlength="1" class="pin-box" id="pinBox4" data-index="3" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="*">
+        </div>
+      </div>
+
+      <!-- Mobile PIN Dots -->
+      <div class="mobile-pin-display" id="mobilePinDisplay">
         <div class="pin-dot" id="pDot1"></div>
         <div class="pin-dot" id="pDot2"></div>
         <div class="pin-dot" id="pDot3"></div>
         <div class="pin-dot" id="pDot4"></div>
       </div>
 
-      <input type="password" id="pinHiddenInput" maxlength="4" autofocus inputmode="numeric" pattern="[0-9]*" class="pin-hidden-input" autocomplete="off">
+      <input type="password" id="pinHiddenInput" maxlength="4" inputmode="numeric" pattern="[0-9]*" class="pin-hidden-input" autocomplete="off">
 
+      <!-- Mobile Keypad Grid -->
       <div class="keypad-grid" id="keypadGrid">
         <button type="button" class="key-btn" data-key="1">1</button>
         <button type="button" class="key-btn" data-key="2">2</button>

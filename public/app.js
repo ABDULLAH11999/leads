@@ -387,9 +387,18 @@ function showNotice(id, message, isError = false) {
 let currentPin = '';
 
 function updatePinDisplay() {
+  // Mobile dots sync
   for (let i = 1; i <= 4; i++) {
     const dot = $(`#pDot${i}`);
     if (dot) dot.classList.toggle('filled', i <= currentPin.length);
+  }
+
+  // Desktop 4 boxes sync
+  for (let i = 0; i < 4; i++) {
+    const box = $(`#pinBox${i + 1}`);
+    if (box) {
+      box.value = currentPin[i] || '';
+    }
   }
 }
 
@@ -429,6 +438,7 @@ async function verifyAndUnlockPin(pinToVerify) {
     statusEl.textContent = err.message || 'ACCESS DENIED: INCORRECT PIN';
     currentPin = '';
     updatePinDisplay();
+    $('#pinBox1')?.focus();
   }
 }
 
@@ -438,6 +448,7 @@ function handlePinKey(key) {
   if (key === 'clear') {
     currentPin = '';
     updatePinDisplay();
+    $('#pinBox1')?.focus();
     return;
   }
 
@@ -451,7 +462,10 @@ function handlePinKey(key) {
   if (/^[0-9]$/.test(key) && currentPin.length < 4) {
     currentPin += key;
     updatePinDisplay();
-    if (currentPin.length === 4) {
+    const nextIdx = currentPin.length;
+    if (nextIdx < 4) {
+      $(`#pinBox${nextIdx + 1}`)?.focus();
+    } else if (currentPin.length === 4) {
       setTimeout(() => verifyAndUnlockPin(currentPin), 150);
     }
   }
@@ -466,25 +480,77 @@ function initPinGate() {
     masterHud.hidden = false;
   }
 
+  // Desktop 4 boxes events
+  const pinBoxes = [$('#pinBox1'), $('#pinBox2'), $('#pinBox3'), $('#pinBox4')];
+
+  pinBoxes.forEach((box, idx) => {
+    if (!box) return;
+
+    box.addEventListener('input', (e) => {
+      const val = e.target.value.replace(/[^0-9]/g, '');
+      if (val) {
+        audio.playKeypad(val.slice(-1));
+        const pinArr = currentPin.split('');
+        pinArr[idx] = val.slice(-1);
+        currentPin = pinArr.join('').slice(0, 4);
+        updatePinDisplay();
+
+        if (idx < 3) {
+          pinBoxes[idx + 1]?.focus();
+        }
+
+        if (currentPin.length === 4) {
+          setTimeout(() => verifyAndUnlockPin(currentPin), 150);
+        }
+      }
+    });
+
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace') {
+        audio.playKeypad('clear');
+        if (!box.value && idx > 0) {
+          pinBoxes[idx - 1].value = '';
+          const pinArr = currentPin.split('');
+          pinArr[idx - 1] = '';
+          currentPin = pinArr.join('');
+          updatePinDisplay();
+          pinBoxes[idx - 1]?.focus();
+        } else {
+          box.value = '';
+          const pinArr = currentPin.split('');
+          pinArr[idx] = '';
+          currentPin = pinArr.join('');
+          updatePinDisplay();
+        }
+      } else if (e.key === 'ArrowLeft' && idx > 0) {
+        pinBoxes[idx - 1]?.focus();
+      } else if (e.key === 'ArrowRight' && idx < 3) {
+        pinBoxes[idx + 1]?.focus();
+      } else if (e.key === 'Enter') {
+        if (currentPin.length === 4) {
+          verifyAndUnlockPin(currentPin);
+        }
+      }
+    });
+
+    box.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '').slice(0, 4);
+      if (pasted) {
+        audio.playKeypad('9');
+        currentPin = pasted;
+        updatePinDisplay();
+        if (currentPin.length === 4) {
+          setTimeout(() => verifyAndUnlockPin(currentPin), 150);
+        }
+      }
+    });
+  });
+
+  // Mobile Keypad clicks
   $('#keypadGrid')?.addEventListener('click', (e) => {
     const btn = e.target.closest('.key-btn');
     if (btn) handlePinKey(btn.dataset.key);
-  });
-
-  window.addEventListener('keydown', (e) => {
-    if (!pinGate.classList.contains('unlocked')) {
-      if (e.key >= '0' && e.key <= '9') {
-        handlePinKey(e.key);
-      } else if (e.key === 'Backspace') {
-        currentPin = currentPin.slice(0, -1);
-        updatePinDisplay();
-        audio.playKeypad('clear');
-      } else if (e.key === 'Enter') {
-        handlePinKey('enter');
-      } else if (e.key === 'Escape') {
-        handlePinKey('clear');
-      }
-    }
   });
 
   $('#lockConsoleBtn')?.addEventListener('click', () => {
@@ -496,6 +562,7 @@ function initPinGate() {
     $('#pinStatusMsg').textContent = '';
     pinGate.classList.remove('unlocked');
     masterHud.hidden = true;
+    setTimeout(() => $('#pinBox1')?.focus(), 200);
   });
 }
 

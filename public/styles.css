@@ -107,12 +107,12 @@ body.cyber-shell::before {
 }
 
 .pin-vault-card {
-  width: min(420px, 100%);
+  width: min(520px, 94vw);
   background: var(--bg-card);
   border: 1px solid var(--border-cyan);
   box-shadow: 0 0 40px rgba(0, 240, 255, 0.18), inset 0 0 30px rgba(0, 240, 255, 0.04);
   border-radius: var(--radius-lg);
-  padding: 28px 24px;
+  padding: 34px 28px;
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -180,7 +180,7 @@ body.cyber-shell::before {
 
 .glitch-text {
   font-family: var(--font-hud);
-  font-size: 1.45rem;
+  font-size: 1.55rem;
   font-weight: 800;
   letter-spacing: 2px;
   color: #fff;
@@ -190,17 +190,58 @@ body.cyber-shell::before {
 
 .pin-hint {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   color: var(--text-muted);
   letter-spacing: 1px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
-.pin-display {
+/* Desktop 4-Box Inputs */
+.desktop-pin-wrapper {
   display: flex;
   justify-content: center;
-  gap: 14px;
-  margin-bottom: 20px;
+  margin: 24px 0 20px;
+}
+
+.desktop-pin-inputs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.pin-box {
+  width: 100%;
+  height: 80px;
+  background: rgba(5, 8, 14, 0.9);
+  border: 2px solid var(--border-cyan);
+  border-radius: var(--radius-md);
+  color: var(--cyan);
+  font-family: var(--font-hud);
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-align: center;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.05);
+}
+
+.pin-box:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.4), inset 0 0 15px rgba(0, 240, 255, 0.15);
+  transform: translateY(-2px);
+  background: rgba(9, 14, 23, 0.98);
+}
+
+.pin-box::placeholder {
+  color: rgba(0, 240, 255, 0.25);
+  font-size: 2.2rem;
+}
+
+/* Mobile PIN display & keypad (hidden on desktop) */
+.mobile-pin-display {
+  display: none;
 }
 
 .pin-dot {
@@ -226,10 +267,7 @@ body.cyber-shell::before {
 }
 
 .keypad-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 18px;
+  display: none;
 }
 
 .key-btn {
@@ -1733,8 +1771,27 @@ body.cyber-shell::before {
   }
 
   /* PIN Gate on mobile */
+  .desktop-pin-wrapper {
+    display: none;
+  }
+
+  .mobile-pin-display {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .keypad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
   .pin-vault-card {
     padding: 22px 16px;
+    width: min(420px, 100%);
   }
 
   .glitch-text {
