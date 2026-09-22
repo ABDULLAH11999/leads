@@ -444,8 +444,9 @@ async function verifyAndUnlockPin(pinToVerify) {
       statusEl.textContent = 'ACCESS GRANTED. DECRYPTING HUD...';
 
       setTimeout(() => {
-        $('#pinGate').classList.add('unlocked');
-        $('#masterHud').hidden = false;
+        $('#pinGate')?.classList.add('unlocked');
+        const hud = $('#masterHud');
+        if (hud) hud.hidden = false;
         refreshDashboard().catch(() => {});
       }, 400);
     } else {
@@ -832,22 +833,27 @@ function showRecordModal(lead) {
 async function refreshDashboard() {
   const query = `/api/leads?limit=75&status=${encodeURIComponent(state.status)}&search=${encodeURIComponent(state.search)}`;
   const [statusData, leadsData, shortlistData] = await Promise.all([
-    api('/api/status'),
-    api(query),
-    api('/api/leads/shortlisted')
+    api('/api/status').catch(() => ({})),
+    api(query).catch(() => ({ count: 0, leads: [] })),
+    api('/api/leads/shortlisted').catch(() => ({ count: 0, leads: [] }))
   ]);
 
-  $('#waStatus').classList.toggle('connected', statusData.whatsapp_connected);
-  $('#waText').textContent = statusData.whatsapp_connected ? 'Connected' : 'Candidate Mode';
+  if ($('#waStatus')) {
+    $('#waStatus').classList.toggle('connected', Boolean(statusData?.whatsapp_connected));
+  }
+  if ($('#waText')) {
+    $('#waText').textContent = statusData?.whatsapp_connected ? 'Connected' : 'Candidate Mode';
+  }
 
-  const stats = statusData.stats || {};
-  $('#statTotal').textContent = Number(stats.total || 0).toLocaleString();
-  $('#statShortlisted').textContent = Number(stats.shortlisted || 0).toLocaleString();
-  $('#statWithPhone').textContent = Number(stats.with_phone || 0).toLocaleString();
-  $('#statVerifiedWA').textContent = Number(stats.discovered || 0).toLocaleString();
+  const stats = statusData?.stats || {};
+  if ($('#statTotal')) $('#statTotal').textContent = Number(stats.total || 0).toLocaleString();
+  if ($('#statShortlisted')) $('#statShortlisted').textContent = Number(stats.shortlisted || 0).toLocaleString();
+  if ($('#statWithPhone')) $('#statWithPhone').textContent = Number(stats.with_phone || 0).toLocaleString();
+  if ($('#statVerifiedWA')) $('#statVerifiedWA').textContent = Number(stats.discovered || 0).toLocaleString();
+  if ($('#tabLeadsCount')) $('#tabLeadsCount').textContent = Number(leadsData?.leads?.length || stats.total || 0).toLocaleString();
 
-  state.leads = leadsData.leads || [];
-  state.shortlisted = shortlistData.leads || [];
+  state.leads = leadsData?.leads || [];
+  state.shortlisted = shortlistData?.leads || [];
 
   renderLeads(state.leads);
   renderShortlist(state.shortlisted);
