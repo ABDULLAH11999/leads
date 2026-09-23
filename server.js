@@ -13,12 +13,6 @@ const { isDatabaseConfigured, query } = require('./db');
 const { checkWhatsAppNumber, getQRCode, isBotConnected, startBot } = require('./bot');
 const { normalizePhone } = require('./scraper');
 const { DEFAULT_OSM_CATEGORIES, discoverOsmBusinesses, geocodeOsm } = require('./osmDiscovery');
-const {
-  VIDEO_EDITOR_KEYWORDS,
-  VIDEO_EDITOR_LOCATIONS,
-  VIDEO_EDITOR_PLATFORMS,
-  discoverVideoEditorAccounts
-} = require('./videoEditorDiscovery');
 const { fetchBioData } = require('./bioFetcher');
 
 const app = express();
@@ -174,7 +168,7 @@ function htmlPage({ title, initialTab = 'leads' }) {
       </div>
     </header>
 
-    <!-- Master Navigation Command Row (3 Buttons) -->
+    <!-- Master Navigation Command Row (2 Buttons) -->
     <nav class="hud-navrow" aria-label="Console Navigation">
       <button class="nav-tab active" data-tab="leads" id="tabBtnLeads" type="button">
         <span class="tab-index">01</span>
@@ -182,14 +176,8 @@ function htmlPage({ title, initialTab = 'leads' }) {
         <span class="tab-badge" id="tabLeadsCount">0</span>
       </button>
 
-      <button class="nav-tab" data-tab="video-editors" id="tabBtnVideo" type="button">
-        <span class="tab-index">02</span>
-        <span class="tab-text">VIDEO EDITORS</span>
-        <span class="tab-badge" id="tabVideoCount">0</span>
-      </button>
-
       <button class="nav-tab" data-tab="bio-fetch" id="tabBtnBio" type="button">
-        <span class="tab-index">03</span>
+        <span class="tab-index">02</span>
         <span class="tab-text">BIO DATA FETCH</span>
         <span class="tab-badge" id="tabBioStatus">READY</span>
       </button>
@@ -361,104 +349,7 @@ function htmlPage({ title, initialTab = 'leads' }) {
         </section>
       </section>
 
-      <!-- ==================== TAB 2: VIDEO EDITORS ==================== -->
-      <section class="tab-content" id="tabSectionVideo">
-        
-        <!-- Video Editor Controls Panel -->
-        <section class="cyber-panel">
-          <div class="panel-header">
-            <div class="panel-title-wrap">
-              <span class="cyber-tag">SOCIAL SCOUT</span>
-              <h2>Video Editor Account Discovery</h2>
-            </div>
-            <div class="video-metrics-bar" aria-live="polite">
-              <div class="v-metric">
-                <small>RETURNED</small>
-                <strong id="veReturnedCount" class="font-mono">0</strong>
-              </div>
-              <div class="v-metric">
-                <small>VERIFIED RANGE</small>
-                <strong id="veVerifiedCount" class="font-mono text-cyan">0</strong>
-              </div>
-              <div class="v-metric">
-                <small>PROFILES SCANNED</small>
-                <strong id="veDiscoveredCount" class="font-mono text-green">0</strong>
-              </div>
-            </div>
-          </div>
-
-          <form id="videoEditorForm" class="video-form-grid">
-            <div class="form-group">
-              <label class="form-label">Country</label>
-              <select name="country" id="veCountry" class="cyber-select" required></select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">City</label>
-              <select name="city" id="veCity" class="cyber-select" required></select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Min Followers</label>
-              <input name="min_followers" type="number" min="1" max="100000" value="1" class="cyber-input font-mono">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Max Followers</label>
-              <input name="max_followers" type="number" min="1" max="500000" value="100000" class="cyber-input font-mono">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Result Limit</label>
-              <input name="limit" type="number" min="1" max="50" value="30" class="cyber-input font-mono">
-            </div>
-
-            <div class="form-group span-full">
-              <label class="form-label">Platforms</label>
-              <div class="platform-toggles" id="vePlatforms"></div>
-            </div>
-
-            <div class="form-group span-full">
-              <label class="form-label">Keywords (Comma separated)</label>
-              <textarea name="keywords" rows="2" class="cyber-textarea" placeholder="video editor, reels editor, tiktok video editor, premiere pro"></textarea>
-            </div>
-
-            <div class="form-group span-full form-actions-row">
-              <label class="cyber-checkline">
-                <input name="include_unverified" type="checkbox" checked>
-                <span>Include hidden follower counts</span>
-              </label>
-              <div class="action-btn-group">
-                <button class="cyber-btn primary" type="submit" id="btnScanVideoEditors">SCAN PROFILES</button>
-                <button class="cyber-btn" type="button" id="btnClearVideoResults">CLEAR SESSION</button>
-                <button class="cyber-btn export-btn" type="button" id="exportVideoPdfBtn">
-                  <span>📄</span> EXPORT PDF
-                </button>
-              </div>
-            </div>
-          </form>
-
-          <div id="videoEditorNotice" class="cyber-notice" hidden></div>
-        </section>
-
-        <!-- Video Results Grid -->
-        <section class="cyber-panel mt-4" id="videoResultsSection">
-          <div class="panel-header table-header-flex">
-            <div class="panel-title-wrap">
-              <span class="cyber-tag">OUTPUT MATRIX</span>
-              <h3>Discovered Video Editor Profiles</h3>
-            </div>
-            <div class="header-controls">
-              <select id="vePlatformFilter" class="cyber-select" aria-label="Platform filter">
-                <option value="">All Platforms</option>
-                <option value="instagram">Instagram</option>
-                <option value="facebook">Facebook</option>
-                <option value="tiktok">TikTok</option>
-              </select>
-              <input id="veResultFilter" class="cyber-input" placeholder="Search handle, name, tag...">
-            </div>
-          </div>
-          <div class="video-cards-grid" id="videoEditorResults"></div>
-        </section>
-      </section>
-
-      <!-- ==================== TAB 3: BIO DATA FETCH ==================== -->
+      <!-- ==================== TAB 2: BIO DATA FETCH ==================== -->
       <section class="tab-content" id="tabSectionBio">
         
         <!-- Bio Search Controls -->
@@ -760,11 +651,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/video-editors', (req, res) => {
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.end(htmlPage({
-    title: 'Lead Matrix - Video Editors Scout',
-    initialTab: 'video-editors'
-  }));
+  res.redirect(301, '/');
 });
 
 app.get('/qr', (req, res) => {
@@ -837,40 +724,6 @@ app.post('/api/bio-fetch', requireAdminSecret, async (req, res) => {
   } catch (error) {
     logger.error({ error: error.message }, '[API] Bio data fetch failed.');
     return res.status(500).json({ error: error.message || 'Failed to retrieve bio data.' });
-  }
-});
-
-/* ==================== VIDEO EDITORS API ==================== */
-
-app.get('/api/video-editors/locations', (req, res) => {
-  res.json({
-    countries: VIDEO_EDITOR_LOCATIONS,
-    platforms: Object.entries(VIDEO_EDITOR_PLATFORMS).map(([id, config]) => ({
-      id,
-      label: config.label
-    })),
-    default_keywords: VIDEO_EDITOR_KEYWORDS
-  });
-});
-
-app.post('/api/video-editors/search', requireAdminSecret, async (req, res) => {
-  try {
-    const result = await discoverVideoEditorAccounts({
-      country: req.body?.country,
-      city: req.body?.city,
-      platforms: req.body?.platforms,
-      keywords: req.body?.keywords,
-      limit: req.body?.limit,
-      min_followers: req.body?.min_followers,
-      max_followers: req.body?.max_followers,
-      include_unverified: req.body?.include_unverified,
-      max_queries: req.body?.max_queries
-    });
-
-    return res.json(result);
-  } catch (error) {
-    logger.error({ error: error.message }, '[API] Video editor discovery failed.');
-    return res.status(500).json({ error: error.message || 'Video editor discovery failed.' });
   }
 });
 

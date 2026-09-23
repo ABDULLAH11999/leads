@@ -341,16 +341,6 @@ const state = {
   circle: null
 };
 
-const videoEditorState = {
-  locations: [],
-  platforms: [],
-  results: [],
-  platformFilter: '',
-  searchFilter: '',
-  hasSearched: false,
-  loading: false
-};
-
 const bioState = {
   currentDossier: null,
   loading: false
@@ -602,7 +592,6 @@ function switchTab(tabName) {
 
 function capitalize(str) {
   if (str === 'leads') return 'Leads';
-  if (str === 'video-editors') return 'Video';
   if (str === 'bio-fetch') return 'Bio';
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
@@ -995,218 +984,7 @@ function bindLeadsControls() {
 }
 
 /* ==========================================================================
-   TAB 2: VIDEO EDITORS CONTROLLER
-   ========================================================================== */
-
-function formatFollowers(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return 'Hidden';
-  if (number >= 1000000) return `${(number / 1000000).toFixed(1)}M`;
-  if (number >= 1000) return `${(number / 1000).toFixed(1)}K`;
-  return number.toLocaleString();
-}
-
-function platformBadge(platform) {
-  const p = platform.toLowerCase();
-  if (p === 'instagram') return '<span class="social-badge-icon instagram">IG</span>';
-  if (p === 'facebook') return '<span class="social-badge-icon facebook">FB</span>';
-  if (p === 'tiktok') return '<span class="social-badge-icon tiktok">TK</span>';
-  return `<span class="social-badge-icon">${p.slice(0, 2).toUpperCase()}</span>`;
-}
-
-function populateVideoEditorCities(countryCode) {
-  const citySelect = $('#veCity');
-  if (!citySelect) return;
-  const selectedCountry = videoEditorState.locations.find((c) => c.code === countryCode) || videoEditorState.locations[0];
-  citySelect.innerHTML = (selectedCountry?.cities || []).map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-}
-
-function renderVideoEditorPlatforms() {
-  const container = $('#vePlatforms');
-  if (!container) return;
-  container.innerHTML = videoEditorState.platforms.map((p) => `
-    <label class="platform-toggle">
-      <input type="checkbox" name="platforms" value="${escapeHtml(p.id)}" checked>
-      ${platformBadge(p.id)}
-      <span>${escapeHtml(p.label)}</span>
-    </label>
-  `).join('');
-}
-
-function renderVideoEditorResults() {
-  const container = $('#videoEditorResults');
-  if (!container) return;
-
-  const search = videoEditorState.searchFilter.trim().toLowerCase();
-  const platform = videoEditorState.platformFilter;
-  const results = videoEditorState.results.filter((acc) => {
-    const matchPlat = !platform || acc.platform === platform;
-    const haystack = `${acc.display_name} ${acc.handle} ${acc.snippet || ''}`.toLowerCase();
-    const matchSearch = !search || haystack.includes(search);
-    return matchPlat && matchSearch;
-  });
-
-  $('#tabVideoCount').textContent = results.length;
-
-  if (videoEditorState.loading) {
-    container.innerHTML = `
-      <div style="grid-column: 1/-1; text-align:center; padding:40px;" class="cyber-notice">
-        <span class="pulse">SCANNING SOCIAL INDICES & ANALYZING FOLLOWER METRICS...</span>
-      </div>
-    `;
-    return;
-  }
-
-  if (!results.length) {
-    container.innerHTML = `
-      <div style="grid-column: 1/-1; text-align:center; padding:32px;" class="text-dim">
-        ${videoEditorState.hasSearched ? 'No profile accounts matched filters.' : 'Select location parameters and click "Scan Profiles" to discover editors.'}
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = results.map((acc) => {
-    const isVer = acc.follower_status === 'verified';
-    const kwBadges = (acc.matched_keywords || []).slice(0, 3).map((k) => `<span class="kw-chip">${escapeHtml(k)}</span>`).join('');
-
-    return `
-      <article class="video-account-card">
-        <div class="account-card-top">
-          ${platformBadge(acc.platform)}
-          <div>
-            <h3>${escapeHtml(acc.display_name || acc.handle)}</h3>
-            <p>@${escapeHtml(acc.handle)} · ${escapeHtml(acc.platform_label)}</p>
-          </div>
-        </div>
-        <div class="account-facts">
-          <span><small>Followers</small><strong>${formatFollowers(acc.followers)}</strong></span>
-          <span><small>Match Score</small><strong>${Number(acc.score || 0)}</strong></span>
-        </div>
-        <p class="account-bio">${escapeHtml(acc.bio || acc.snippet || 'Public video editing creator candidate.')}</p>
-        <div class="keyword-chips-row">${kwBadges}</div>
-        <div class="account-actions-row">
-          <span class="cyber-tag ${isVer ? 'hot' : ''}">${isVer ? 'Verified Range' : 'Public Candidate'}</span>
-          <a class="cyber-btn primary sm" href="${escapeHtml(acc.profile_url)}" target="_blank" rel="noreferrer">
-            Open Profile ↗
-          </a>
-        </div>
-      </article>
-    `;
-  }).join('');
-}
-
-async function initVideoEditorControls() {
-  try {
-    const config = await api('/api/video-editors/locations');
-    videoEditorState.locations = config.countries || [];
-    videoEditorState.platforms = config.platforms || [];
-
-    const countrySelect = $('#veCountry');
-    if (countrySelect) {
-      countrySelect.innerHTML = videoEditorState.locations.map((c) => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.name)}</option>`).join('');
-      populateVideoEditorCities(countrySelect.value);
-      countrySelect.addEventListener('change', (e) => {
-        audio.playTacticalBlip();
-        populateVideoEditorCities(e.target.value);
-      });
-    }
-
-    const kwTextarea = $('#videoEditorForm textarea[name="keywords"]');
-    if (kwTextarea && config.default_keywords?.length) {
-      kwTextarea.value = config.default_keywords.slice(0, 8).join(', ');
-    }
-
-    renderVideoEditorPlatforms();
-    renderVideoEditorResults();
-  } catch (err) {
-    console.warn('Video locations config load error:', err.message);
-  }
-
-  $('#vePlatformFilter')?.addEventListener('change', (e) => {
-    audio.playTacticalBlip();
-    videoEditorState.platformFilter = e.target.value;
-    renderVideoEditorResults();
-  });
-
-  $('#veResultFilter')?.addEventListener('input', (e) => {
-    videoEditorState.searchFilter = e.target.value;
-    renderVideoEditorResults();
-  });
-
-  $('#videoEditorForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const payload = Object.fromEntries(formData.entries());
-    payload.platforms = formData.getAll('platforms');
-    payload.include_unverified = e.currentTarget.elements.include_unverified.checked;
-
-    audio.playScanTrigger();
-    audio.startAnalyzing();
-
-    try {
-      videoEditorState.loading = true;
-      videoEditorState.hasSearched = true;
-      renderVideoEditorResults();
-      showNotice('#videoEditorNotice', 'Scanning public search results & calculating follower ranges...');
-
-      const result = await api('/api/video-editors/search', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-
-      audio.playDataSuccess();
-      videoEditorState.loading = false;
-      videoEditorState.results = result.accounts || [];
-
-      $('#veReturnedCount').textContent = Number(result.returned_count || 0).toLocaleString();
-      $('#veVerifiedCount').textContent = Number(result.verified_count || 0).toLocaleString();
-      $('#veDiscoveredCount').textContent = Number(result.discovered_count || 0).toLocaleString();
-
-      showNotice('#videoEditorNotice', `Discovered ${result.returned_count || 0} matching editor accounts.`);
-      renderVideoEditorResults();
-      $('#videoResultsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (err) {
-      audio.stopAnalyzing();
-      audio.playAccessDenied();
-      videoEditorState.loading = false;
-      renderVideoEditorResults();
-      showNotice('#videoEditorNotice', err.message, true);
-    }
-  });
-
-  $('#btnClearVideoResults')?.addEventListener('click', () => {
-    audio.playTacticalBlip();
-    videoEditorState.results = [];
-    videoEditorState.hasSearched = false;
-    renderVideoEditorResults();
-    $('#veReturnedCount').textContent = '0';
-    $('#veVerifiedCount').textContent = '0';
-    $('#veDiscoveredCount').textContent = '0';
-    showNotice('#videoEditorNotice', 'Session results cleared.');
-  });
-
-  $('#exportVideoPdfBtn')?.addEventListener('click', () => {
-    const el = $('#videoResultsSection');
-    if (!el) return;
-    audio.playPdfExport();
-    if (window.html2pdf) {
-      const opt = {
-        margin: 10,
-        filename: `Video_Editors_Report_${Date.now()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-      window.html2pdf().set(opt).from(el).save();
-    } else {
-      window.print();
-    }
-  });
-}
-
-/* ==========================================================================
-   TAB 3: BIO DATA FETCH & INTELLIGENCE DOSSIER
+   TAB 2: BIO DATA FETCH & INTELLIGENCE DOSSIER
    ========================================================================== */
 
 function appendTerminalLog(text) {
@@ -1427,7 +1205,6 @@ document.addEventListener('DOMContentLoaded', () => {
   startCyberClock();
   initMap();
   bindLeadsControls();
-  initVideoEditorControls();
   initBioFetchControls();
 
   // Initialize audio context on first user interaction

@@ -472,12 +472,12 @@ body.cyber-shell::before {
 }
 
 /* ==========================================================================
-   MASTER COMMAND NAV ROW (3 OPTION BUTTONS)
+   MASTER COMMAND NAV ROW (2 OPTION BUTTONS)
    ========================================================================== */
 
 .hud-navrow {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   padding: 14px 24px;
   background: rgba(5, 8, 14, 0.7);
