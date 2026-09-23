@@ -30,7 +30,6 @@ No Google Maps API key is required for the OSM/Overpass workflow.
 - `GET /api/status` - app status and stats
 - `GET /api/osm/geocode?q=Gulberg Lahore` - user-triggered OSM search
 - `POST /api/discovery/osm` - free Overpass radius discovery
-- `POST /api/bio-fetch` - public profile and bio data retrieval
 - `GET /api/leads` - filtered saved leads
 - `GET /api/leads/shortlisted` - top shortlisted records
 - `PATCH /api/leads/:id` - protected lead updates

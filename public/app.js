@@ -328,7 +328,6 @@ const audio = new CyberAudioEngine();
 
 const state = {
   authToken: sessionStorage.getItem('hud_auth') || '',
-  activeTab: 'leads',
   leads: [],
   shortlisted: [],
   status: '',
@@ -339,11 +338,6 @@ const state = {
   map: null,
   marker: null,
   circle: null
-};
-
-const bioState = {
-  currentDossier: null,
-  loading: false
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -576,37 +570,7 @@ function initPinGate() {
   });
 }
 
-/* ==========================================================================
-   NAVIGATION TAB SWITCHER
-   ========================================================================== */
 
-function switchTab(tabName) {
-  state.activeTab = tabName;
-  $$('.nav-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === tabName));
-  $$('.tab-content').forEach((sec) => sec.classList.toggle('active', sec.id === `tabSection${capitalize(tabName)}`));
-
-  if (tabName === 'leads' && state.map) {
-    setTimeout(() => state.map.invalidateSize(), 150);
-  }
-}
-
-function capitalize(str) {
-  if (str === 'leads') return 'Leads';
-  if (str === 'bio-fetch') return 'Bio';
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-function initNavTabs() {
-  $$('.nav-tab').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      audio.playTabSwitch();
-      switchTab(btn.dataset.tab);
-    });
-  });
-
-  const initialTab = document.body.dataset.initialTab || 'leads';
-  switchTab(initialTab);
-}
 
 /* ==========================================================================
    SOUND & TELEMETRY CONTROLS
@@ -748,7 +712,7 @@ function renderLeads(leads = []) {
     <tr>
       <td>
         <button class="record-btn" data-record='${escapeHtml(JSON.stringify(lead))}'>${escapeHtml(lead.store_name)}</button>
-        ${lead.shortlisted ? '<span class="cyber-tag hot" style="margin-left:6px;">HOT</span>' : ''}
+        ${lead.shortlisted ? '<span class="studio-pill-tag amber" style="margin-left:6px;">HOT</span>' : ''}
         ${qualityBadge(lead.lead_score)}
       </td>
       <td>${escapeHtml(lead.category || '-')}</td>
@@ -758,11 +722,11 @@ function renderLeads(leads = []) {
       <td>${whatsappMarkup(lead)}</td>
       <td>${webMarkup(lead)}</td>
       <td>${escapeHtml(lead.address || lead.area || '-')}<br><small class="text-dim">${lead.distance_km ? `${lead.distance_km}km` : ''}</small></td>
-      <td><span class="cyber-tag ${lead.status === 'REJECTED' ? 'error' : ''}">${escapeHtml(lead.status)}</span></td>
+      <td><span class="studio-pill-tag ${lead.status === 'REJECTED' ? 'rose' : 'purple'}">${escapeHtml(lead.status)}</span></td>
       <td>
         <div style="display:flex; gap:4px; flex-wrap:wrap;">
-          <button class="cyber-btn sm" data-shortlisted="true" data-lead-id="${lead.id}">★ Shortlist</button>
-          <button class="cyber-btn sm" data-lead-action="REJECTED" data-lead-id="${lead.id}">✕ Reject</button>
+          <button class="studio-btn sm" data-shortlisted="true" data-lead-id="${lead.id}">★ Shortlist</button>
+          <button class="studio-btn sm danger" data-lead-action="REJECTED" data-lead-id="${lead.id}">✕ Reject</button>
         </div>
       </td>
     </tr>
@@ -800,20 +764,21 @@ function showRecordModal(lead) {
 
   audio.playTacticalBlip();
   body.innerHTML = `
-    <h2 class="dossier-name" style="font-size:1.4rem; margin-bottom:12px;">${escapeHtml(lead.store_name)}</h2>
-    <div style="display:flex; gap:8px; margin-bottom:14px;">
+    <h2 class="record-title" style="font-size:1.35rem; font-weight:700; color:#f8fafc; margin-bottom:12px;">${escapeHtml(lead.store_name)}</h2>
+    <div style="display:flex; gap:8px; margin-bottom:14px; align-items:center; flex-wrap:wrap;">
       <span class="score-badge">Score: ${Number(lead.lead_score || 0)}</span>
       ${qualityBadge(lead.lead_score)}
-      <span class="cyber-tag">${escapeHtml(lead.status || 'PENDING')}</span>
+      <span class="studio-pill-tag purple">${escapeHtml(lead.status || 'PENDING')}</span>
     </div>
     <div class="meta-row"><span>Category</span><strong>${escapeHtml(lead.category || '-')}</strong></div>
     <div class="meta-row"><span>Phone</span><strong class="font-mono">${escapeHtml(lead.phone || '-')}</strong></div>
     <div class="meta-row"><span>WhatsApp</span><strong class="font-mono">${escapeHtml(lead.whatsapp_number || '-')}</strong></div>
     <div class="meta-row"><span>Address</span><strong>${escapeHtml(lead.address || lead.area || '-')}</strong></div>
     <div class="meta-row"><span>Distance</span><strong>${lead.distance_km ? `${lead.distance_km} km` : '-'}</strong></div>
-    <div style="margin-top:16px; display:flex; gap:10px;">
-      ${lead.whatsapp_url ? `<a class="cyber-btn primary sm" href="${escapeHtml(lead.whatsapp_url)}" target="_blank">Open WhatsApp</a>` : ''}
-      ${lead.website ? `<a class="cyber-btn sm" href="${escapeHtml(lead.website)}" target="_blank">Website</a>` : ''}
+    <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+      ${lead.whatsapp_url ? `<a class="studio-btn primary sm" href="${escapeHtml(lead.whatsapp_url)}" target="_blank" rel="noreferrer">Open WhatsApp</a>` : ''}
+      ${lead.website ? `<a class="studio-btn sm" href="${escapeHtml(lead.website)}" target="_blank" rel="noreferrer">Website</a>` : ''}
+      ${lead.osm_url ? `<a class="studio-btn sm" href="${escapeHtml(lead.osm_url)}" target="_blank" rel="noreferrer">OpenStreetMap</a>` : ''}
     </div>
   `;
   modal.hidden = false;
@@ -963,6 +928,20 @@ function bindLeadsControls() {
     $('#recordModal').hidden = true;
   });
 
+  $('.modal-backdrop')?.addEventListener('click', () => {
+    const modal = $('#recordModal');
+    if (modal) modal.hidden = true;
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const modal = $('#recordModal');
+      if (modal && !modal.hidden) {
+        modal.hidden = true;
+      }
+    }
+  });
+
   // PDF Export for Leads Table
   $('#exportLeadsPdfBtn')?.addEventListener('click', () => {
     const tableEl = $('#leadsTableSection');
@@ -984,228 +963,15 @@ function bindLeadsControls() {
 }
 
 /* ==========================================================================
-   TAB 2: BIO DATA FETCH & INTELLIGENCE DOSSIER
-   ========================================================================== */
-
-function appendTerminalLog(text) {
-  const container = $('#bioTerminalLogs');
-  if (!container) return;
-  const line = document.createElement('div');
-  line.className = 'log-line';
-  line.textContent = `[${new Date().toISOString().slice(11, 19)}] ${text}`;
-  container.appendChild(line);
-  container.scrollTop = container.scrollHeight;
-}
-
-function renderDossier(dossier) {
-  const resSec = $('#bioResultSection');
-  if (!dossier || !resSec) return;
-
-  $('#dossierHeaderName').textContent = dossier.full_name || 'Subject Profile';
-  $('#dossierFullName').textContent = dossier.full_name || '--';
-  $('#dossierRole').textContent = dossier.primary_role || 'Public Figure';
-
-  // Avatar
-  const avatarEl = $('#dossierAvatar');
-  if (avatarEl) {
-    avatarEl.src = dossier.avatar_url || '/assets/avatar-placeholder.svg';
-  }
-
-  // Aliases
-  const aliasEl = $('#dossierAliases');
-  if (aliasEl) {
-    const list = dossier.aliases || [];
-    aliasEl.innerHTML = list.length ? `Aliases: ${list.map(escapeHtml).join(', ')}` : '';
-  }
-
-  // Summary
-  $('#dossierSummary').textContent = dossier.summary || 'No biographical summary recorded.';
-
-  // Demographics
-  $('#dossierDob').textContent = dossier.dob || 'Not documented';
-  $('#dossierAge').textContent = dossier.age || 'Unknown';
-  $('#dossierBirthPlace').textContent = dossier.birth_place || 'Not confirmed';
-  $('#dossierLocation').textContent = dossier.location || 'Global';
-  $('#dossierNationality').textContent = dossier.nationality || 'Verified';
-  $('#dossierMarital').textContent = dossier.marital_status || 'Not Public';
-  $('#dossierSpouse').textContent = dossier.spouse || 'Not listed';
-  $('#dossierEducation').textContent = dossier.education || 'Professional Track';
-
-  // Affiliations
-  const affEl = $('#dossierAffiliations');
-  if (affEl) {
-    const items = dossier.affiliations || [];
-    affEl.innerHTML = items.length
-      ? items.map((a) => `<span class="kw-chip">${escapeHtml(a)}</span>`).join('')
-      : '<span class="text-dim">None listed</span>';
-  }
-
-  // Highlights
-  const hlEl = $('#dossierHighlights');
-  if (hlEl) {
-    const hls = dossier.career_highlights || [];
-    hlEl.innerHTML = hls.length
-      ? hls.map((h) => `<li>${escapeHtml(h)}</li>`).join('')
-      : '<li>Active public career profile</li>';
-  }
-
-  // Confidence badge
-  const score = dossier.confidence_score || 85;
-  $('#dossierConfidenceBadge').innerHTML = `
-    <span class="cyber-tag ${score >= 80 ? 'hot' : ''}">CONFIDENCE: ${score}%</span>
-  `;
-
-  // Social Grid
-  const socialGrid = $('#dossierSocialGrid');
-  if (socialGrid) {
-    const links = dossier.social_links || {};
-    const platformDefs = [
-      { id: 'linkedin', label: 'LinkedIn', icon: 'LI' },
-      { id: 'instagram', label: 'Instagram', icon: 'IG' },
-      { id: 'facebook', label: 'Facebook', icon: 'FB' },
-      { id: 'twitter_x', label: 'X (Twitter)', icon: 'X' },
-      { id: 'youtube', label: 'YouTube', icon: 'YT' },
-      { id: 'tiktok', label: 'TikTok', icon: 'TK' },
-      { id: 'github', label: 'GitHub', icon: 'GH' },
-      { id: 'wikipedia', label: 'Wikipedia', icon: 'WK' },
-      { id: 'website', label: 'Official Web', icon: 'WEB' }
-    ];
-
-    socialGrid.innerHTML = platformDefs.map((p) => {
-      const url = links[p.id];
-      if (url) {
-        return `
-          <a class="social-profile-chip" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">
-            <span class="social-badge-icon ${p.id}">${p.icon}</span>
-            <span>${p.label}</span>
-          </a>
-        `;
-      } else {
-        return `
-          <div class="social-profile-chip disabled">
-            <span class="social-badge-icon">${p.icon}</span>
-            <span>${p.label} (Not Found)</span>
-          </div>
-        `;
-      }
-    }).join('');
-  }
-
-  // Sources
-  const sourcesEl = $('#dossierSourcesList');
-  if (sourcesEl) {
-    const srcs = dossier.sources || [];
-    sourcesEl.innerHTML = srcs.length
-      ? srcs.map((s) => `
-        <div class="source-item">
-          ● <a href="${escapeHtml(s.url)}" target="_blank" rel="noreferrer">${escapeHtml(s.title || s.url)}</a>
-        </div>
-      `).join('')
-      : '<span class="text-dim">Public web open intelligence search.</span>';
-  }
-
-  resSec.hidden = false;
-  $('#exportBioPdfBtn').disabled = false;
-  $('#tabBioStatus').textContent = 'LOADED';
-}
-
-function initBioFetchControls() {
-  $('#bioSearchForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const target = $('#bioTargetInput')?.value?.trim();
-    const location = $('#bioLocationInput')?.value?.trim();
-
-    if (!target) return;
-
-    audio.playScanTrigger();
-    audio.startAnalyzing();
-
-    const termFeed = $('#bioTerminalFeed');
-    const termLogs = $('#bioTerminalLogs');
-    termLogs.innerHTML = '';
-    termFeed.hidden = false;
-
-    appendTerminalLog(`[+] Initiating deep profile scan for target: "${target}"`);
-    appendTerminalLog(`[+] Querying Wikipedia & public intelligence databases...`);
-
-    const logTimer = setInterval(() => {
-      const steps = [
-        '[+] Querying web indexes and social graph footprints...',
-        '[+] Resolving OpenGraph metadata & avatar media...',
-        '[+] Synthesizing structured intelligence dossier with AI...'
-      ];
-      const randomStep = steps[Math.floor(Math.random() * steps.length)];
-      appendTerminalLog(randomStep);
-    }, 1200);
-
-    try {
-      showNotice('#bioNotice', 'Scanning public intelligence indices...');
-      const response = await api('/api/bio-fetch', {
-        method: 'POST',
-        body: JSON.stringify({ target, location })
-      });
-
-      clearInterval(logTimer);
-      audio.playDataSuccess();
-      appendTerminalLog('[+] Intelligence dossier compiled successfully.');
-      showNotice('#bioNotice', `Dossier compiled for ${response.dossier?.full_name || target}.`);
-
-      bioState.currentDossier = response.dossier;
-      renderDossier(response.dossier);
-      $('#bioResultSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (err) {
-      clearInterval(logTimer);
-      audio.stopAnalyzing();
-      audio.playAccessDenied();
-      appendTerminalLog(`[-] SCAN FAILED: ${err.message}`);
-      showNotice('#bioNotice', err.message, true);
-    }
-  });
-
-  $('#btnClearBioData')?.addEventListener('click', () => {
-    audio.playTacticalBlip();
-    bioState.currentDossier = null;
-    $('#bioResultSection').hidden = true;
-    $('#bioTerminalFeed').hidden = true;
-    $('#exportBioPdfBtn').disabled = true;
-    $('#tabBioStatus').textContent = 'READY';
-    $('#bioTargetInput').value = '';
-    $('#bioLocationInput').value = '';
-    showNotice('#bioNotice', 'Session memory wiped clean.');
-  });
-
-  $('#exportBioPdfBtn')?.addEventListener('click', () => {
-    const el = $('#dossierPrintArea');
-    if (!el) return;
-    audio.playPdfExport();
-    const name = bioState.currentDossier?.full_name || 'Target';
-    if (window.html2pdf) {
-      const opt = {
-        margin: 10,
-        filename: `Intelligence_Dossier_${name.replace(/\s+/g, '_')}_${Date.now()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-      window.html2pdf().set(opt).from(el).save();
-    } else {
-      window.print();
-    }
-  });
-}
-
-/* ==========================================================================
    APP INITIALIZATION
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
   initSoundToggle();
   initPinGate();
-  initNavTabs();
   startCyberClock();
   initMap();
   bindLeadsControls();
-  initBioFetchControls();
 
   // Initialize audio context on first user interaction
   const unlockAudio = () => {
@@ -1220,3 +986,4 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshDashboard().catch(() => {});
   }
 });
+

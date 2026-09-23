@@ -13,7 +13,6 @@ const { isDatabaseConfigured, query } = require('./db');
 const { checkWhatsAppNumber, getQRCode, isBotConnected, startBot } = require('./bot');
 const { normalizePhone } = require('./scraper');
 const { DEFAULT_OSM_CATEGORIES, discoverOsmBusinesses, geocodeOsm } = require('./osmDiscovery');
-const { fetchBioData } = require('./bioFetcher');
 
 const app = express();
 const logger = pino({
@@ -66,7 +65,7 @@ function requireAdminSecret(req, res, next) {
   return next();
 }
 
-function htmlPage({ title, initialTab = 'leads' }) {
+function htmlPage({ title }) {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -78,34 +77,34 @@ function htmlPage({ title, initialTab = 'leads' }) {
   <link rel="apple-touch-icon" href="/assets/hacker.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Orbitron:wght@500;700;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/assets/styles.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="/assets/app.js" defer></script>
 </head>
-<body class="cyber-shell" data-initial-tab="${initialTab}">
+<body class="studio-shell">
 
-  <!-- ==================== SECURITY PIN GATE (ATM / TERMINAL ACCESS) ==================== -->
+  <!-- ==================== STUDIO SECURITY PIN GATE ==================== -->
   <section class="pin-overlay" id="pinGate" aria-modal="true" role="dialog">
-    <div class="pin-vault-card">
+    <div class="studio-vault-card">
       <div class="pin-card-header">
-        <div class="cyber-logo-icon">
-          <div class="radar-scan"></div>
+        <div class="studio-logo-badge">
+          <span class="studio-badge-icon">✦</span>
         </div>
-        <p class="cyber-badge">AUTHENTICATION GATE</p>
-        <h1 class="glitch-text" data-text="SYSTEM ACCESS">SYSTEM ACCESS</h1>
-        <p class="pin-hint">ENTER 4-DIGIT SECURITY PIN TO UNLOCK CONSOLE</p>
+        <p class="studio-pill-tag">SECURE WORKSPACE</p>
+        <h1 class="studio-login-title">Lead Studio</h1>
+        <p class="pin-hint">Enter 4-digit security PIN to unlock workspace</p>
       </div>
 
-      <!-- Desktop 4-Box Inputs (Better Width) -->
+      <!-- Desktop 4-Box Inputs -->
       <div class="desktop-pin-wrapper" id="desktopPinWrapper">
         <div class="desktop-pin-inputs" id="desktopPinInputs">
-          <input type="password" maxlength="1" class="pin-box" id="pinBox1" data-index="0" autofocus inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="*">
-          <input type="password" maxlength="1" class="pin-box" id="pinBox2" data-index="1" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="*">
-          <input type="password" maxlength="1" class="pin-box" id="pinBox3" data-index="2" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="*">
-          <input type="password" maxlength="1" class="pin-box" id="pinBox4" data-index="3" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="*">
+          <input type="password" maxlength="1" class="pin-box" id="pinBox1" data-index="0" autofocus inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="•">
+          <input type="password" maxlength="1" class="pin-box" id="pinBox2" data-index="1" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="•">
+          <input type="password" maxlength="1" class="pin-box" id="pinBox3" data-index="2" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="•">
+          <input type="password" maxlength="1" class="pin-box" id="pinBox4" data-index="3" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="•">
         </div>
       </div>
 
@@ -132,333 +131,237 @@ function htmlPage({ title, initialTab = 'leads' }) {
         <button type="button" class="key-btn" data-key="9">9</button>
         <button type="button" class="key-btn action-key" data-key="clear" title="Clear PIN">CLR</button>
         <button type="button" class="key-btn" data-key="0">0</button>
-        <button type="button" class="key-btn action-key unlock-btn" data-key="enter" title="Authenticate">ENT</button>
+        <button type="button" class="key-btn action-key unlock-btn" data-key="enter" title="Authenticate">↵</button>
       </div>
 
       <div class="pin-status-msg" id="pinStatusMsg"></div>
       <div class="pin-footer-info">
-        <span>SECURITY PROTOCOL: ACTIVE</span>
-        <span>GATEWAY: NODE_V24</span>
+        <span>DEFAULT PIN: 7940</span>
+        <span>LEAD STUDIO V2.5</span>
       </div>
     </div>
   </section>
 
-  <!-- ==================== MAIN MASTER CONSOLE (UNLOCKED HUD) ==================== -->
+  <!-- ==================== MAIN STUDIO WORKSPACE (UNLOCKED) ==================== -->
   <div class="master-hud" id="masterHud" hidden>
 
-    <!-- Top Command Header -->
+    <!-- Clipchamp-Style Studio Topbar -->
     <header class="hud-topbar">
       <div class="hud-brand">
-        <div class="hud-radar-dot"></div>
-        <div>
-          <span class="hud-sub">INTELLIGENCE CONSOLE</span>
-          <h1 class="hud-title">LEAD MATRIX HUD</h1>
+        <div class="studio-logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1 class="hud-title">LEAD STUDIO</h1>
+            <span class="pro-badge">PRO</span>
+          </div>
+          <span class="hud-sub">Local Outreach & WhatsApp Validator</span>
         </div>
       </div>
 
-      <!-- Telemetry Strip -->
+      <div class="studio-center-status">
+        <span class="status-pulse-dot"></span>
+        <span class="status-pulse-text">OVERPASS GEO ENGINE READY</span>
+      </div>
+
       <div class="hud-telemetry">
-        <div class="telemetry-node">
-          <span class="node-label">SYS TIME</span>
+        <button class="hud-btn" id="soundToggleBtn" type="button" title="Toggle Audio Feedback">
+          <span class="icon">🔊</span> <span class="txt">AUDIO ON</span>
+        </button>
+        <div class="telemetry-pill">
+          <span class="node-label">SYS</span>
           <span class="node-val font-mono" id="cyberClock">00:00:00 UTC</span>
         </div>
-        <button class="hud-btn hud-lock-btn" id="lockConsoleBtn" type="button" title="Lock System">
+        <button class="hud-btn hud-lock-btn" id="lockConsoleBtn" type="button" title="Lock Studio">
           <span class="lock-icon">🔒</span> LOCK
         </button>
       </div>
     </header>
 
-    <!-- Master Navigation Command Row (2 Buttons) -->
-    <nav class="hud-navrow" aria-label="Console Navigation">
-      <button class="nav-tab active" data-tab="leads" id="tabBtnLeads" type="button">
-        <span class="tab-index">01</span>
-        <span class="tab-text">LOCAL LEADS</span>
-        <span class="tab-badge" id="tabLeadsCount">0</span>
-      </button>
-
-      <button class="nav-tab" data-tab="bio-fetch" id="tabBtnBio" type="button">
-        <span class="tab-index">02</span>
-        <span class="tab-text">BIO DATA FETCH</span>
-        <span class="tab-badge" id="tabBioStatus">READY</span>
-      </button>
-    </nav>
-
-    <!-- Main Dynamic Content Area -->
+    <!-- Main Dynamic Studio Canvas -->
     <main class="hud-main">
 
-      <!-- ==================== TAB 1: LOCAL LEADS ==================== -->
-      <section class="tab-content active" id="tabSectionLeads">
-        
-        <!-- Summary Strip -->
-        <section class="cyber-panel hero-strip">
-          <div class="hero-left">
-            <p class="cyber-eyebrow">GEO RADIUS INTELLIGENCE</p>
-            <h2 class="hero-heading">Local Business Outreach & WhatsApp Validator</h2>
+      <!-- Studio Metrics Bar -->
+      <section class="studio-card hero-strip" id="heroStrip">
+        <div class="hero-left">
+          <div class="hero-tag-wrap">
+            <span class="studio-pill-tag purple">GEO RADIUS INTELLIGENCE</span>
           </div>
-          <div class="hero-metrics">
-            <div class="metric-card">
-              <small>Total Leads</small>
-              <strong id="statTotal">0</strong>
+          <h2 class="hero-heading">Local Business Outreach & WhatsApp Validator</h2>
+          <p class="hero-caption">High-precision local business discovery via OpenStreetMap Overpass with instant WhatsApp direct messaging.</p>
+        </div>
+        <div class="hero-metrics">
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon">🏢</span>
+              <small>TOTAL LEADS</small>
             </div>
-            <div class="metric-card">
-              <small>Shortlisted</small>
-              <strong id="statShortlisted" class="highlight-cyan">0</strong>
-            </div>
-            <div class="metric-card">
-              <small>With Phone</small>
-              <strong id="statWithPhone">0</strong>
-            </div>
-            <div class="metric-card">
-              <small>Verified WA</small>
-              <strong id="statVerifiedWA" class="highlight-green">0</strong>
-            </div>
+            <strong id="statTotal" class="metric-value">0</strong>
           </div>
-        </section>
-
-        <!-- Search Controls Row -->
-        <section class="cyber-grid-3">
-          <!-- Map Area Selector -->
-          <article class="cyber-panel">
-            <div class="panel-header">
-              <div class="panel-title-wrap">
-                <span class="cyber-tag">GEO COORD</span>
-                <h3>Target Location</h3>
-              </div>
-              <button class="cyber-btn sm" data-action="refresh" title="Sync Records">SYNC</button>
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon star">★</span>
+              <small>SHORTLISTED</small>
             </div>
-            <div class="map-search-bar">
-              <input id="placeSearch" class="cyber-input" placeholder="Search area (e.g. Gulberg Lahore)">
-              <button class="cyber-btn primary sm" id="searchPlaceButton" type="button">FIND</button>
-            </div>
-            <div id="map" class="map-cyber-canvas"></div>
-            <p class="map-meta-info" id="mapMeta">Click on the tactical map to target coordinates.</p>
-          </article>
-
-          <!-- Discovery Form -->
-          <article class="cyber-panel">
-            <div class="panel-header">
-              <div class="panel-title-wrap">
-                <span class="cyber-tag">SCANNER</span>
-                <h3>Overpass Discovery</h3>
-              </div>
-            </div>
-            <form id="discoveryForm" class="cyber-form-stack">
-              <div class="form-row-2">
-                <label class="form-label">Latitude
-                  <input name="latitude" id="latitudeInput" class="cyber-input font-mono" required readonly placeholder="Lat">
-                </label>
-                <label class="form-label">Longitude
-                  <input name="longitude" id="longitudeInput" class="cyber-input font-mono" required readonly placeholder="Lon">
-                </label>
-              </div>
-              <div class="form-row-2">
-                <label class="form-label">Radius (KM): <span id="radiusValue" class="text-cyan font-mono">5</span>
-                  <input name="radius_km" id="radiusInput" type="range" min="1" max="25" value="5" class="cyber-range">
-                </label>
-                <label class="form-label">Limit
-                  <input name="limit" type="number" min="1" max="100" value="10" class="cyber-input">
-                </label>
-              </div>
-              <label class="form-label">Categories
-                <input name="categories" class="cyber-input" placeholder="restaurant,gym,dentist,salon,retail">
-              </label>
-              <label class="cyber-checkline">
-                <input name="verify_whatsapp" type="checkbox" checked>
-                <span>Verify WhatsApp connectivity</span>
-              </label>
-              <button class="cyber-btn primary full" type="submit" id="btnDiscoverLeads">DISCOVER LOCAL LEADS</button>
-            </form>
-            <div id="discoveryResult" class="cyber-notice" hidden></div>
-          </article>
-
-          <!-- Manual Lead Addition -->
-          <article class="cyber-panel">
-            <div class="panel-header">
-              <div class="panel-title-wrap">
-                <span class="cyber-tag">MANUAL ENTRY</span>
-                <h3>Register Lead</h3>
-              </div>
-            </div>
-            <form id="leadForm" class="cyber-form-stack">
-              <label class="form-label">Business Name
-                <input name="store_name" class="cyber-input" required placeholder="Prime Health Clinic">
-              </label>
-              <label class="form-label">Phone Number
-                <input name="phone" class="cyber-input font-mono" required placeholder="03001234567">
-              </label>
-              <label class="form-label">Area / City
-                <input name="area" class="cyber-input" placeholder="Lahore">
-              </label>
-              <button class="cyber-btn full" type="submit">SAVE RECORD</button>
-            </form>
-            <div id="leadResult" class="cyber-notice" hidden></div>
-          </article>
-        </section>
-
-        <!-- Top Shortlisted Records -->
-        <section class="cyber-panel mt-4">
-          <div class="panel-header">
-            <div class="panel-title-wrap">
-              <span class="cyber-tag hot">TOP 10</span>
-              <h3>High Quality Candidates</h3>
-            </div>
+            <strong id="statShortlisted" class="metric-value highlight-purple">0</strong>
           </div>
-          <div id="hotLeads" class="hot-leads-grid"></div>
-        </section>
-
-        <!-- Leads Review Desk & Table -->
-        <section class="cyber-panel mt-4" id="leadsTableSection">
-          <div class="panel-header table-header-flex">
-            <div class="panel-title-wrap">
-              <span class="cyber-tag">DATABASE</span>
-              <h3>Discovered Business Records</h3>
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon">📞</span>
+              <small>WITH PHONE</small>
             </div>
-            <div class="header-controls">
-              <select id="statusFilter" class="cyber-select" aria-label="Status filter">
-                <option value="">All Statuses</option>
-                <option>PENDING</option>
-                <option>REPLIED</option>
-                <option>MIGRATED</option>
-                <option>REJECTED</option>
-              </select>
-              <input id="searchFilter" class="cyber-input" placeholder="Filter name, phone, area...">
-              <button class="cyber-btn export-btn" id="exportLeadsPdfBtn" type="button">
-                <span>📄</span> EXPORT PDF
-              </button>
+            <strong id="statWithPhone" class="metric-value">0</strong>
+          </div>
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon green">💬</span>
+              <small>VERIFIED WA</small>
             </div>
+            <strong id="statVerifiedWA" class="metric-value highlight-green">0</strong>
           </div>
-          <div class="table-container">
-            <table class="cyber-table" id="leadsTableElement">
-              <thead>
-                <tr>
-                  <th>BUSINESS</th>
-                  <th>CATEGORY</th>
-                  <th>SCORE</th>
-                  <th>REVIEWS</th>
-                  <th>PHONE</th>
-                  <th>WHATSAPP</th>
-                  <th>LINKS</th>
-                  <th>LOCATION</th>
-                  <th>STATUS</th>
-                  <th>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody id="leadRows"></tbody>
-            </table>
-          </div>
-        </section>
+        </div>
       </section>
 
-      <!-- ==================== TAB 2: BIO DATA FETCH ==================== -->
-      <section class="tab-content" id="tabSectionBio">
-        
-        <!-- Bio Search Controls -->
-        <section class="cyber-panel">
+      <!-- 3-Panel Studio Control Deck -->
+      <section class="studio-grid-3">
+        <!-- Panel 1: Target Location & Interactive Map -->
+        <article class="studio-card map-panel">
           <div class="panel-header">
             <div class="panel-title-wrap">
-              <span class="cyber-tag bio">INTELLIGENCE DOSSIER</span>
-              <h2>Public Profile & Bio Data Retrieval</h2>
+              <span class="panel-icon">📍</span>
+              <h3>Target Location & Area Map</h3>
             </div>
-            <div class="header-controls">
-              <button class="cyber-btn export-btn" type="button" id="exportBioPdfBtn" disabled>
-                <span>📄</span> EXPORT DOSSIER PDF
-              </button>
-              <button class="cyber-btn" type="button" id="btnClearBioData">WIPE MEMORY</button>
+            <button class="studio-btn sm" data-action="refresh" title="Sync Records">
+              <span>↻</span> SYNC
+            </button>
+          </div>
+          <div class="map-search-bar">
+            <input id="placeSearch" class="studio-input" placeholder="Search area or city (e.g. Gulberg Lahore)">
+            <button class="studio-btn primary sm" id="searchPlaceButton" type="button">SEARCH</button>
+          </div>
+          <div id="map" class="map-studio-canvas"></div>
+          <p class="map-meta-info" id="mapMeta">Click anywhere on the map to set scan coordinates.</p>
+        </article>
+
+        <!-- Panel 2: Discovery Engine Form -->
+        <article class="studio-card">
+          <div class="panel-header">
+            <div class="panel-title-wrap">
+              <span class="panel-icon purple">✦</span>
+              <h3>Radius Discovery Engine</h3>
             </div>
           </div>
-
-          <form id="bioSearchForm" class="bio-query-form">
-            <div class="bio-input-group">
-              <label class="form-label">Target Name / Public Figure / Social Profile URL</label>
-              <div class="input-with-button">
-                <input id="bioTargetInput" class="cyber-input lg" required placeholder="e.g. Elon Musk, Atif Aslam, or https://www.linkedin.com/in/username">
-                <input id="bioLocationInput" class="cyber-input md" placeholder="Location hint (e.g. Pakistan, USA, Tech)">
-                <button class="cyber-btn primary lg" type="submit" id="btnFetchBio">FETCH DOSSIER</button>
-              </div>
+          <form id="discoveryForm" class="studio-form-stack">
+            <div class="form-row-2">
+              <label class="form-label">Latitude
+                <input name="latitude" id="latitudeInput" class="studio-input font-mono" required readonly placeholder="Lat">
+              </label>
+              <label class="form-label">Longitude
+                <input name="longitude" id="longitudeInput" class="studio-input font-mono" required readonly placeholder="Lon">
+              </label>
             </div>
+            <div class="form-row-2">
+              <label class="form-label">Radius: <span id="radiusValue" class="text-purple font-mono font-bold">5</span> KM
+                <input name="radius_km" id="radiusInput" type="range" min="1" max="25" value="5" class="studio-range">
+              </label>
+              <label class="form-label">Result Limit
+                <input name="limit" type="number" min="1" max="100" value="10" class="studio-input">
+              </label>
+            </div>
+            <label class="form-label">Business Categories
+              <input name="categories" class="studio-input" placeholder="restaurant,gym,dentist,salon,retail">
+            </label>
+            <label class="studio-checkline">
+              <input name="verify_whatsapp" type="checkbox" checked>
+              <span>Verify WhatsApp connectivity & availability</span>
+            </label>
+            <button class="studio-btn primary full glow-btn" type="submit" id="btnDiscoverLeads">
+              <span>✨</span> DISCOVER LOCAL LEADS
+            </button>
           </form>
+          <div id="discoveryResult" class="studio-notice" hidden></div>
+        </article>
 
-          <!-- Realtime Terminal Log Feed -->
-          <div class="cyber-terminal-feed" id="bioTerminalFeed" hidden>
-            <div class="terminal-titlebar">
-              <span class="terminal-dot red"></span>
-              <span class="terminal-dot yellow"></span>
-              <span class="terminal-dot green"></span>
-              <span class="terminal-title">INTELLIGENCE_DISCOVERY_FEED.LOG</span>
-            </div>
-            <div class="terminal-body" id="bioTerminalLogs"></div>
-          </div>
-
-          <div id="bioNotice" class="cyber-notice" hidden></div>
-        </section>
-
-        <!-- Dossier Result Panel -->
-        <section class="cyber-panel mt-4" id="bioResultSection" hidden>
+        <!-- Panel 3: Quick Manual Entry -->
+        <article class="studio-card">
           <div class="panel-header">
             <div class="panel-title-wrap">
-              <span class="cyber-tag hot">DOSSIER REPORT</span>
-              <h3 id="dossierHeaderName">Subject Profile</h3>
-            </div>
-            <div id="dossierConfidenceBadge"></div>
-          </div>
-
-          <div class="dossier-card" id="dossierPrintArea">
-            <!-- Top Profile Banner -->
-            <div class="dossier-hero">
-              <div class="dossier-avatar-wrap">
-                <img id="dossierAvatar" src="" alt="Profile Photo" class="dossier-avatar" onerror="this.src='/assets/avatar-placeholder.svg'">
-                <div class="dossier-radar-ring"></div>
-              </div>
-              <div class="dossier-hero-info">
-                <div class="dossier-name-row">
-                  <h2 id="dossierFullName" class="dossier-name">--</h2>
-                  <span class="dossier-role" id="dossierRole">--</span>
-                </div>
-                <div class="dossier-aliases" id="dossierAliases"></div>
-                <p class="dossier-summary" id="dossierSummary">--</p>
-              </div>
-            </div>
-
-            <!-- Identity & Demographics Grid -->
-            <div class="dossier-grid">
-              <div class="dossier-meta-card">
-                <h4>IDENTITY & DEMOGRAPHICS</h4>
-                <div class="meta-row"><span>Date of Birth</span><strong id="dossierDob">--</strong></div>
-                <div class="meta-row"><span>Age</span><strong id="dossierAge">--</strong></div>
-                <div class="meta-row"><span>Place of Birth</span><strong id="dossierBirthPlace">--</strong></div>
-                <div class="meta-row"><span>Current Residence</span><strong id="dossierLocation">--</strong></div>
-                <div class="meta-row"><span>Nationality</span><strong id="dossierNationality">--</strong></div>
-                <div class="meta-row"><span>Marital Status</span><strong id="dossierMarital">--</strong></div>
-                <div class="meta-row"><span>Spouse / Family</span><strong id="dossierSpouse">--</strong></div>
-              </div>
-
-              <div class="dossier-meta-card">
-                <h4>AFFILIATIONS & ACHIEVEMENTS</h4>
-                <div class="meta-row"><span>Education</span><strong id="dossierEducation">--</strong></div>
-                <div class="meta-section">
-                  <small>Key Affiliations / Entities</small>
-                  <div class="chip-container" id="dossierAffiliations"></div>
-                </div>
-                <div class="meta-section">
-                  <small>Career Highlights & Milestones</small>
-                  <ul class="dossier-list" id="dossierHighlights"></ul>
-                </div>
-              </div>
-            </div>
-
-            <!-- Verified Social Footprint -->
-            <div class="dossier-social-section">
-              <h4>VERIFIED SOCIAL & WEB FOOTPRINT</h4>
-              <div class="social-chips-grid" id="dossierSocialGrid"></div>
-            </div>
-
-            <!-- Intelligence Sources -->
-            <div class="dossier-sources-section">
-              <h4>SOURCE REFERENCES & CITATIONS</h4>
-              <div class="sources-list" id="dossierSourcesList"></div>
+              <span class="panel-icon">＋</span>
+              <h3>Quick Lead Capture</h3>
             </div>
           </div>
-        </section>
+          <form id="leadForm" class="studio-form-stack">
+            <label class="form-label">Business / Client Name
+              <input name="store_name" class="studio-input" required placeholder="Prime Dental Clinic">
+            </label>
+            <label class="form-label">Phone Number
+              <input name="phone" class="studio-input font-mono" required placeholder="03001234567">
+            </label>
+            <label class="form-label">Area / Location
+              <input name="area" class="studio-input" placeholder="Lahore">
+            </label>
+            <button class="studio-btn full" type="submit">
+              <span>＋</span> SAVE RECORD
+            </button>
+          </form>
+          <div id="leadResult" class="studio-notice" hidden></div>
+        </article>
+      </section>
+
+      <!-- Top Shortlisted Records -->
+      <section class="studio-card mt-4">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <span class="studio-pill-tag amber">★ HIGH PRIORITY</span>
+            <h3>Top Shortlisted Candidates</h3>
+          </div>
+        </div>
+        <div id="hotLeads" class="hot-leads-grid"></div>
+      </section>
+
+      <!-- Leads Review Desk & Table -->
+      <section class="studio-card mt-4" id="leadsTableSection">
+        <div class="panel-header table-header-flex">
+          <div class="panel-title-wrap">
+            <span class="studio-pill-tag purple">DATABASE</span>
+            <h3>Discovered Business Directory</h3>
+          </div>
+          <div class="header-controls">
+            <select id="statusFilter" class="studio-select" aria-label="Status filter">
+              <option value="">All Statuses</option>
+              <option>PENDING</option>
+              <option>REPLIED</option>
+              <option>MIGRATED</option>
+              <option>REJECTED</option>
+            </select>
+            <input id="searchFilter" class="studio-input" placeholder="Search name, phone, area...">
+            <button class="studio-btn export-btn" id="exportLeadsPdfBtn" type="button">
+              <span>📄</span> EXPORT PDF
+            </button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="studio-table" id="leadsTableElement">
+            <thead>
+              <tr>
+                <th>BUSINESS</th>
+                <th>CATEGORY</th>
+                <th>SCORE</th>
+                <th>REVIEWS</th>
+                <th>PHONE</th>
+                <th>WHATSAPP</th>
+                <th>LINKS</th>
+                <th>LOCATION</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody id="leadRows"></tbody>
+          </table>
+        </div>
       </section>
 
     </main>
@@ -469,7 +372,7 @@ function htmlPage({ title, initialTab = 'leads' }) {
     <div class="modal-backdrop"></div>
     <div class="modal-card">
       <div class="modal-header">
-        <span class="cyber-tag">RECORD DETAILS</span>
+        <span class="studio-pill-tag purple">RECORD DETAILS</span>
         <button class="modal-close-btn" id="recordClose" type="button">✕</button>
       </div>
       <div class="modal-body" id="recordBody"></div>
@@ -645,8 +548,7 @@ async function saveOsmLead(lead, discoveryQuery, shortlisted = false) {
 app.get('/', (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.end(htmlPage({
-    title: 'Lead Matrix HUD Console',
-    initialTab: 'leads'
+    title: 'Lead Studio - Business Outreach & WhatsApp Validator'
   }));
 });
 
@@ -658,16 +560,15 @@ app.get('/qr', (req, res) => {
   const qr = getQRCode();
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.end(htmlPage({
-    title: 'Lead Matrix - WhatsApp Verification',
-    initialTab: 'leads'
+    title: 'Lead Studio - WhatsApp Verification'
   }));
 });
 
 app.get('/health', (req, res) => {
   res.json({
-    name: 'lead-matrix-hud',
+    name: 'lead-studio',
     status: 'ok',
-    mode: 'cyber_intelligence',
+    mode: 'studio_intelligence',
     whatsapp_connected: isBotConnected(),
     qr_available: Boolean(getQRCode()),
     auto_reply_enabled: process.env.ENABLE_AUTO_REPLY === 'true',
@@ -693,8 +594,8 @@ app.get('/api/status', async (req, res) => {
     const stats = await leadStats();
 
     res.json({
-      name: 'lead-matrix-hud',
-      mode: 'cyber_intelligence',
+      name: 'lead-studio',
+      mode: 'studio_intelligence',
       whatsapp_connected: isBotConnected(),
       qr_available: Boolean(getQRCode()),
       auto_reply_enabled: process.env.ENABLE_AUTO_REPLY === 'true',
@@ -705,25 +606,6 @@ app.get('/api/status', async (req, res) => {
   } catch (error) {
     logger.error({ error: error.message }, '[API] Status query failed.');
     res.status(500).json({ error: 'Failed to fetch status.' });
-  }
-});
-
-/* ==================== BIO DATA DOSSIER API ==================== */
-
-app.post('/api/bio-fetch', requireAdminSecret, async (req, res) => {
-  const target = req.body?.target;
-  const location = req.body?.location;
-
-  if (!target) {
-    return res.status(400).json({ error: 'Target name or social profile URL is required.' });
-  }
-
-  try {
-    const dossier = await fetchBioData(target, location);
-    return res.json({ success: true, dossier });
-  } catch (error) {
-    logger.error({ error: error.message }, '[API] Bio data fetch failed.');
-    return res.status(500).json({ error: error.message || 'Failed to retrieve bio data.' });
   }
 });
 
